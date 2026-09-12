@@ -416,6 +416,7 @@
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
     if (!state.audioContext) state.audioContext = new AudioContext();
+    BACKGROUND_MUSIC.attach(state.audioContext);
     if (state.audioContext.state === 'suspended') state.audioContext.resume().catch(() => {});
   }
 
@@ -434,13 +435,129 @@
       oscillator.type = name === 'spill' ? 'sawtooth' : 'sine';
       oscillator.frequency.setValueAtTime(frequency, start);
       gain.gain.setValueAtTime(.0001, start);
-      gain.gain.exponentialRampToValueAtTime(name === 'spill' ? .075 : .055, start + .012);
+      gain.gain.exponentialRampToValueAtTime(name === 'spill' ? .11 : .08, start + .012);
       gain.gain.exponentialRampToValueAtTime(.0001, start + .12);
       oscillator.connect(gain).connect(audio.destination);
       oscillator.start(start);
       oscillator.stop(start + .13);
     });
   }
+
+  // Original procedural score: oscillator synthesis only, with no samples or external music assets.
+  const BACKGROUND_MUSIC = (() => {
+    const CHORDS = [
+      { root: 130.81, tones: [0, 4, 7, 12] },
+      { root: 110.00, tones: [0, 3, 7, 12] },
+      { root: 87.31, tones: [0, 4, 7, 12] },
+      { root: 98.00, tones: [0, 4, 7, 12] }
+    ];
+    const ARP = [0, 2, 1, 3, 2, 1, 3, 1];
+    const activeNodes = new Set();
+    let audio = null;
+    let musicBus = null;
+    let active = false;
+    let nextStepAt = 0;
+    let step = 0;
+    let currentVolume = .0001;
+
+    function attach(context) {
+      if (!context || audio === context) return;
+      stopVoices();
+      audio = context;
+      musicBus = audio.createGain();
+      musicBus.gain.setValueAtTime(.0001, audio.currentTime);
+      musicBus.connect(audio.destination);
+      nextStepAt = 0;
+      step = 0;
+      currentVolume = .0001;
+    }
+
+    function frequency(root, semitones, octave = 0) {
+      return root * Math.pow(2, semitones / 12 + octave);
+    }
+
+    function voice(freq, when, duration, type, volume, attack = .012) {
+      if (!audio || !musicBus) return;
+      const oscillator = audio.createOscillator();
+      const gain = audio.createGain();
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(freq, when);
+      gain.gain.setValueAtTime(.0001, when);
+      gain.gain.exponentialRampToValueAtTime(Math.max(.0002, volume), when + attack);
+      gain.gain.exponentialRampToValueAtTime(.0001, when + duration);
+      oscillator.connect(gain).connect(musicBus);
+      activeNodes.add(oscillator);
+      oscillator.onended = () => {
+        activeNodes.delete(oscillator);
+        oscillator.disconnect();
+        gain.disconnect();
+      };
+      oscillator.start(when);
+      oscillator.stop(when + duration + .02);
+    }
+
+    function scheduleStep(when, index, rush) {
+      const chord = CHORDS[Math.floor(index / 8) % CHORDS.length];
+      const chordStep = index % 8;
+      const stepLength = 60 / (rush ? 124 : 112) / 2;
+      const arpTone = chord.tones[ARP[chordStep]];
+
+      voice(frequency(chord.root, arpTone, 1), when, stepLength * .68, 'triangle', rush ? .022 : .018);
+      if (chordStep % 2 === 0) voice(chord.root / 2, when, stepLength * 1.45, 'sine', .022, .02);
+      if (chordStep === 3 || chordStep === 7) {
+        voice(frequency(chord.root, chord.tones[(chordStep + 1) % 4], 2), when, stepLength * .42, 'sine', rush ? .012 : .008);
+      }
+      if (chordStep === 0) {
+        chord.tones.slice(0, 3).forEach((tone, toneIndex) => {
+          voice(frequency(chord.root, tone), when + toneIndex * .012, stepLength * 6.6, 'sine', .0055, .16);
+        });
+      }
+      return stepLength;
+    }
+
+    function start() {
+      active = true;
+      if (audio) nextStepAt = Math.max(nextStepAt, audio.currentTime + .05);
+    }
+
+    function stopVoices() {
+      activeNodes.forEach((node) => {
+        try { node.stop(); } catch (_) {}
+      });
+      activeNodes.clear();
+    }
+
+    function stop() {
+      active = false;
+      stopVoices();
+      if (audio && musicBus) {
+        musicBus.gain.cancelScheduledValues(audio.currentTime);
+        musicBus.gain.setValueAtTime(.0001, audio.currentTime);
+        currentVolume = .0001;
+      }
+      nextStepAt = 0;
+      step = 0;
+    }
+
+    function update(runLeft) {
+      if (!active || !audio || !musicBus || !state.audioEnabled || state.paused || audio.state !== 'running') return;
+      const rush = runLeft <= 15;
+      const now = audio.currentTime;
+      if (!nextStepAt || nextStepAt < now - .1) nextStepAt = now + .05;
+      const targetVolume = rush ? .075 : .058;
+      if (targetVolume !== currentVolume) {
+        musicBus.gain.cancelScheduledValues(now);
+        musicBus.gain.setTargetAtTime(targetVolume, now, .18);
+        currentVolume = targetVolume;
+      }
+      while (nextStepAt < now + .35) {
+        nextStepAt += scheduleStep(nextStepAt, step, rush);
+        step = (step + 1) % 32;
+      }
+    }
+
+    return { attach, start, stop, update };
+  })();
 
   function todayKey() { return new Date().toISOString().slice(0, 10); }
 
@@ -780,6 +897,8 @@
     ui.recoveryButton.classList.add('hidden');
     ui.guideBar.classList.add('hidden');
     state.mode = name;
+    if (playing) BACKGROUND_MUSIC.start();
+    else BACKGROUND_MUSIC.stop();
   }
 
   function openTutorial() {
@@ -1467,6 +1586,7 @@
     const dt = Math.min(.05, (now - state.last) / 1000);
     state.last = now;
     update(dt, now);
+    BACKGROUND_MUSIC.update(state.runLeft);
     draw(now);
     if (!state.firstFrameSent && window.ytgame?.game?.firstFrameReady) {
       state.firstFrameSent = true;
