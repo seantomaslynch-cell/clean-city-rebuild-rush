@@ -162,6 +162,9 @@ h2 { font-size: clamp(2.8rem, 10vw, 5.7rem); }
 .cargo-meter { flex: 1; height: 12px; min-width: 45px; overflow: hidden; border: 2px solid var(--ink); border-radius: 10px; background: #dbe8ee; }
 .cargo-meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--green), var(--yellow)); transition: width .18s ease; }
 .cargo-chip strong { min-width: 48px; font-size: .78rem; }
+.cargo-chip.full, .cargo-chip.blocked { background: #fff0b8; }
+.cargo-chip.full .cargo-meter i, .cargo-chip.blocked .cargo-meter i { background: linear-gradient(90deg, var(--yellow), var(--coral)); }
+.cargo-chip.blocked { animation: cargo-alert .28s ease-in-out 2 alternate; }
 .combo-chip { min-width: 68px; flex-direction: column; justify-content: center; gap: 0; background: var(--yellow); transform: scale(.92); opacity: .7; transition: transform .14s ease, opacity .14s ease; }
 .combo-chip.hot { transform: scale(1); opacity: 1; }
 .combo-chip span { font-size: .65rem; font-weight: 1000; letter-spacing: .08em; }
@@ -177,8 +180,12 @@ h2 { font-size: clamp(2.8rem, 10vw, 5.7rem); }
 .guide-bar span { display: grid; place-items: center; flex: 0 0 26px; width: 26px; height: 26px; border: 2px solid var(--ink); border-radius: 50%; background: var(--green); font-size: .76rem; font-weight: 1000; }
 .guide-bar strong { font-size: .78rem; letter-spacing: .02em; }
 .guide-bar.sort span { background: var(--yellow); }
+.guide-bar.cargo-warning { background: #fff7cf; color: #744600; }
+.guide-bar.cargo-warning span { background: var(--yellow); color: var(--ink); }
 .guide-bar.danger { background: #fff0ed; color: #a2241c; }
 .guide-bar.danger span { background: var(--coral); color: #fff; }
+
+@keyframes cargo-alert { from { transform: translateY(0); } to { transform: translateY(3px); } }
 
 .reward-button { position: absolute; z-index: 4; right: max(14px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 9px; min-height: 56px; padding: 7px 12px; border: 3px solid var(--ink); border-radius: 15px; background: var(--yellow); color: var(--ink); box-shadow: 0 5px 0 var(--ink); cursor: pointer; }
 .reward-button .reward-icon { display: grid; place-items: center; width: 34px; height: 34px; border: 2px solid var(--ink); border-radius: 50%; background: #fff; }
@@ -394,4 +401,4 @@ h2 { font-size: clamp(2.8rem, 10vw, 5.7rem); }
   .tutorial-list { margin: 12px 0; }
 }
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

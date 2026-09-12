@@ -5,7 +5,7 @@
   const ctx = canvas.getContext('2d', { alpha: false });
   const $ = (id) => document.getElementById(id);
   const ui = {
-    hud: $('hud'), timer: $('timer'), runScore: $('runScore'), cargoFill: $('cargoFill'), cargoCount: $('cargoCount'),
+    hud: $('hud'), timer: $('timer'), runScore: $('runScore'), cargoChip: $('cargoChip'), cargoFill: $('cargoFill'), cargoCount: $('cargoCount'),
     contractBar: $('contractBar'), contractText: $('contractText'), contractFill: $('contractFill'), magnetButton: $('magnetButton'),
     recoveryButton: $('recoveryButton'), comboChip: $('comboChip'), comboValue: $('comboValue'), bonusButton: $('bonusButton'), supplyButton: $('supplyButton'),
     guideBar: $('guideBar'), guideIcon: $('guideIcon'), guideText: $('guideText'),
@@ -50,7 +50,7 @@
     season: { id: '', xp: 0, claimed: [], boostDate: '' },
     cosmetics: { unlocked: ['antenna-none', 'wheels-blue', 'trail-white'], equipped: { antenna: 'antenna-none', wheels: 'wheels-blue', trail: 'trail-white' } },
     prestige: { unlocked: false, enabled: false, activeRun: false, runs: 0 },
-    lostCargo: [], recoveryUntil: 0, lastHazardHit: 0, shakeUntil: 0, audioEnabled: true, audioContext: null, trailTick: 0, frameId: 0,
+    lostCargo: [], recoveryUntil: 0, lastHazardHit: 0, shakeUntil: 0, cargoBlockedUntil: 0, lastCargoBlockedAt: 0, audioEnabled: true, audioContext: null, trailTick: 0, frameId: 0,
     player: { x: .5, y: .7, tx: .5, ty: .7, r: 22, tier: 1, cargo: [], speed: .31 },
     trash: [], floaters: [], hazards: [], stations: [], nextSpawn: 0
   };
@@ -457,7 +457,7 @@
       return;
     }
     const notes = {
-      start: [330, 494], pickup: [520], rare: [660, 990], sort: [390, 585],
+      start: [330, 494], pickup: [520], rare: [660, 990], blocked: [220, 277], sort: [390, 585],
       contract: [440, 660, 880], spill: [180, 120], reward: [523, 784, 1047],
       finish: [392, 523, 659], build: [330, 494, 659]
     }[name] || [440];
@@ -465,7 +465,7 @@
       const oscillator = audio.createOscillator();
       const gain = audio.createGain();
       const start = audio.currentTime + index * .065;
-      oscillator.type = name === 'spill' ? 'sawtooth' : 'sine';
+      oscillator.type = name === 'spill' ? 'sawtooth' : name === 'blocked' ? 'square' : 'sine';
       oscillator.frequency.setValueAtTime(frequency, start);
       gain.gain.setValueAtTime(.0001, start);
       gain.gain.exponentialRampToValueAtTime(name === 'spill' ? .11 : .08, start + .012);
@@ -493,6 +493,7 @@
     let step = 0;
     let currentVolume = .0001;
     let debugScheduled = false;
+    let scene = 'menu';
 
     function attach(context) {
       if (!context || audio === context) return;
@@ -531,26 +532,34 @@
       oscillator.stop(when + duration + .02);
     }
 
-    function scheduleStep(when, index, rush) {
+    function scheduleStep(when, index, rush, menu) {
       const chord = CHORDS[Math.floor(index / 8) % CHORDS.length];
       const chordStep = index % 8;
-      const stepLength = 60 / (rush ? 124 : 112) / 2;
+      const stepLength = 60 / (menu ? 92 : rush ? 124 : 112) / 2;
       const arpTone = chord.tones[ARP[chordStep]];
 
-      voice(frequency(chord.root, arpTone, 1), when, stepLength * .68, 'triangle', rush ? .052 : .045);
-      if (chordStep % 2 === 0) voice(chord.root / 2, when, stepLength * 1.45, 'sine', .04, .02);
+      voice(frequency(chord.root, arpTone, 1), when, stepLength * .68, 'triangle', menu ? .034 : rush ? .052 : .045);
+      if (chordStep % 2 === 0) voice(chord.root / 2, when, stepLength * 1.45, 'sine', menu ? .03 : .04, .02);
       if (chordStep === 3 || chordStep === 7) {
-        voice(frequency(chord.root, chord.tones[(chordStep + 1) % 4], 2), when, stepLength * .42, 'sine', rush ? .022 : .018);
+        voice(frequency(chord.root, chord.tones[(chordStep + 1) % 4], 2), when, stepLength * .42, 'sine', menu ? .012 : rush ? .022 : .018);
       }
       if (chordStep === 0) {
         chord.tones.slice(0, 3).forEach((tone, toneIndex) => {
-          voice(frequency(chord.root, tone), when + toneIndex * .012, stepLength * 6.6, 'sine', .012, .16);
+          voice(frequency(chord.root, tone), when + toneIndex * .012, stepLength * 6.6, 'sine', menu ? .01 : .012, .16);
         });
       }
       return stepLength;
     }
 
-    function start() {
+    function start(nextScene = 'menu') {
+      const normalizedScene = nextScene === 'run' ? 'run' : 'menu';
+      if (active && scene !== normalizedScene) {
+        stopVoices();
+        nextStepAt = 0;
+        step = 0;
+        debugScheduled = false;
+      }
+      scene = normalizedScene;
       active = true;
       if (audio) nextStepAt = Math.max(nextStepAt, audio.currentTime + .05);
     }
@@ -577,10 +586,11 @@
 
     function update(runLeft) {
       if (!active || !audio || !musicBus || !state.audioEnabled || state.paused || audio.state !== 'running') return;
-      const rush = runLeft <= 15;
+      const menu = scene === 'menu';
+      const rush = !menu && runLeft <= 15;
       const now = audio.currentTime;
       if (!nextStepAt || nextStepAt < now - .1) nextStepAt = now + .05;
-      const targetVolume = rush ? .32 : .25;
+      const targetVolume = menu ? .17 : rush ? .32 : .25;
       if (targetVolume !== currentVolume) {
         musicBus.gain.cancelScheduledValues(now);
         musicBus.gain.setTargetAtTime(targetVolume, now, .18);
@@ -588,10 +598,10 @@
       }
       while (nextStepAt < now + .35) {
         if (!debugScheduled) {
-          audioDebug('music-scheduled', { context: audio.state, volume: targetVolume });
+          audioDebug('music-scheduled', { context: audio.state, scene, volume: targetVolume });
           debugScheduled = true;
         }
-        nextStepAt += scheduleStep(nextStepAt, step, rush);
+        nextStepAt += scheduleStep(nextStepAt, step, rush, menu);
         step = (step + 1) % 32;
       }
     }
@@ -937,8 +947,7 @@
     ui.recoveryButton.classList.add('hidden');
     ui.guideBar.classList.add('hidden');
     state.mode = name;
-    if (playing) BACKGROUND_MUSIC.start();
-    else BACKGROUND_MUSIC.stop();
+    BACKGROUND_MUSIC.start(playing ? 'run' : 'menu');
   }
 
   function openTutorial() {
@@ -988,6 +997,8 @@
     state.recoveryUntil = 0;
     state.lastHazardHit = 0;
     state.shakeUntil = 0;
+    state.cargoBlockedUntil = 0;
+    state.lastCargoBlockedAt = 0;
     state.player = { x: .5, y: .72, tx: .5, ty: .72, r: 22, tier: 1, cargo: [], speed: .31 };
     state.trash = [];
     PARTICLE_POOL.reset();
@@ -1216,10 +1227,18 @@
   }
 
   function updateHud() {
+    const now = performance.now();
+    const cargoLength = state.player.cargo.length;
+    const cargoCapacity = capacity();
+    const cargoFull = cargoLength >= cargoCapacity;
+    const cargoBlocked = now < state.cargoBlockedUntil;
     ui.timer.textContent = Math.max(0, Math.ceil(state.runLeft));
     ui.runScore.textContent = state.score;
-    ui.cargoCount.textContent = `${state.player.cargo.length}/${capacity()}`;
-    ui.cargoFill.style.width = `${Math.min(100, state.player.cargo.length / capacity() * 100)}%`;
+    ui.cargoCount.textContent = `${cargoLength}/${cargoCapacity}`;
+    ui.cargoCount.setAttribute('aria-label', cargoFull ? `Cargo full: ${cargoLength} of ${cargoCapacity}. Sort at a matching depot.` : `Cargo ${cargoLength} of ${cargoCapacity}`);
+    ui.cargoFill.style.width = `${Math.min(100, cargoLength / cargoCapacity * 100)}%`;
+    ui.cargoChip.classList.toggle('full', cargoFull);
+    ui.cargoChip.classList.toggle('blocked', cargoBlocked);
     const contract = TYPES[state.contractType];
     ui.contractText.textContent = `Sort ${state.contractGoal} ${contract.label} · ${Math.min(state.contractGoal, state.contractCount)}/${state.contractGoal}${state.vipContract ? ' · VIP' : ''}`;
     ui.contractFill.style.width = `${Math.min(100, state.contractCount / state.contractGoal * 100)}%`;
@@ -1231,19 +1250,26 @@
     ui.magnetButton.disabled = active || state.rewardUsed.magnet || state.adBusy;
     const canRecover = state.lostCargo.length && performance.now() < state.recoveryUntil && !state.rewardUsed.recovery;
     ui.recoveryButton.classList.toggle('hidden', !canRecover);
-    updateGuide(performance.now());
+    updateGuide(now);
   }
 
   function updateGuide(now) {
-    const visible = state.mode === 'playing' && now < state.guideUntil;
+    const cargoBlocked = now < state.cargoBlockedUntil;
+    const visible = state.mode === 'playing' && (now < state.guideUntil || cargoBlocked);
     ui.guideBar.classList.toggle('hidden', !visible);
     if (!visible) return;
-    ui.guideBar.classList.remove('sort', 'danger');
+    ui.guideBar.classList.remove('sort', 'danger', 'cargo-warning');
     ui.guideIcon.style.background = '';
     if (state.lostCargo.length && now < state.recoveryUntil) {
       ui.guideBar.classList.add('danger');
       ui.guideIcon.textContent = '!';
       ui.guideText.textContent = `${currentLevel().hazard} SPILL — steer around dark hazards`;
+      return;
+    }
+    if (cargoBlocked) {
+      ui.guideBar.classList.add('sort', 'cargo-warning');
+      ui.guideIcon.textContent = '!';
+      ui.guideText.textContent = state.player.cargo.length >= capacity() ? 'CARGO FULL → sort at a matching depot' : 'NOT ENOUGH ROOM → sort cargo first';
       return;
     }
     if (state.player.cargo.length) {
@@ -1301,14 +1327,19 @@
         item.x += (p.x - item.x) * Math.min(1, dt * 5);
         item.y += (p.y - item.y) * Math.min(1, dt * 5);
       }
-      if (d < .035 && p.cargo.length + item.size <= capacity()) {
-        for (let unit = 0; unit < item.size; unit++) p.cargo.push({ type: item.type, value: item.rare ? 2 : 1 });
-        state.trash.splice(i, 1);
-        burst(item.x, item.y, TYPES[item.type].color, 5);
-        floater(item.x, item.y, item.rare ? 'RARE ×2' : `+${item.size}`, item.rare ? '#9b6700' : TYPES[item.type].dark);
-        sfx(item.rare ? 'rare' : 'pickup');
-        if (p.cargo.length >= 6 && p.tier === 1) p.tier = 2;
-        if (p.cargo.length >= 10 && p.tier === 2) p.tier = 3;
+      if (d < .035) {
+        if (p.cargo.length + item.size <= capacity()) {
+          for (let unit = 0; unit < item.size; unit++) p.cargo.push({ type: item.type, value: item.rare ? 2 : 1 });
+          state.trash.splice(i, 1);
+          burst(item.x, item.y, TYPES[item.type].color, 5);
+          floater(item.x, item.y, item.rare ? 'RARE ×2' : `+${item.size}`, item.rare ? '#9b6700' : TYPES[item.type].dark);
+          sfx(item.rare ? 'rare' : 'pickup');
+          if (p.cargo.length >= 6 && p.tier === 1) p.tier = 2;
+          if (p.cargo.length >= 10 && p.tier === 2) p.tier = 3;
+          if (p.cargo.length >= capacity()) signalCargoBlocked(item, now);
+        } else {
+          signalCargoBlocked(item, now);
+        }
       }
     }
 
@@ -1332,12 +1363,28 @@
     updateHud();
   }
 
+  function signalCargoBlocked(item, now) {
+    if (now - state.lastCargoBlockedAt < 1400) return;
+    const full = state.player.cargo.length >= capacity();
+    state.lastCargoBlockedAt = now;
+    state.cargoBlockedUntil = now + 2600;
+    state.guideUntil = Math.max(state.guideUntil, state.cargoBlockedUntil);
+    state.shakeUntil = Math.max(state.shakeUntil, now + 110);
+    const x = item?.x ?? state.player.x;
+    const y = item?.y ?? state.player.y;
+    burst(x, y, '#ffd447', 6);
+    floater(state.player.x, state.player.y, full ? 'CARGO FULL!' : `NEED ${item?.size || 1} SLOTS!`, '#8a5b00');
+    sfx('blocked');
+    showToast(full ? 'Cargo full — sort at a matching color depot!' : 'Not enough room — sort cargo to make space!');
+  }
+
   function spillCargo(now) {
     const amount = Math.max(2, Math.floor(state.player.cargo.length / 2));
     state.lostCargo = state.player.cargo.splice(-amount);
     state.recoveryUntil = now + 6500;
     state.lastHazardHit = now;
     state.combo = 0;
+    state.cargoBlockedUntil = 0;
     state.shakeUntil = now + 350;
     state.guideUntil = Math.max(state.guideUntil, now + 6500);
     burst(state.player.x, state.player.y, '#ff6e5b', 16);
@@ -1357,6 +1404,7 @@
     if (!matching) return;
     const value = matchingCargo.reduce((total, item) => total + item.value, 0);
     p.cargo = p.cargo.filter((item) => item.type !== type);
+    state.cargoBlockedUntil = 0;
     state.sorted += matching;
     state.deposits += 1;
     state.combo += 1;
@@ -1651,6 +1699,7 @@
   window.addEventListener('keydown', (event) => { if (!state.paused) { unlockAudio(); state.keys.add(event.key.toLowerCase()); } });
   window.addEventListener('keyup', (event) => { state.keys.delete(event.key.toLowerCase()); });
   window.addEventListener('resize', resize);
+  window.addEventListener('pointerdown', unlockAudio, { once: true, capture: true });
 
   $('playButton').addEventListener('click', () => { unlockAudio(); state.tutorialSeen ? prepareBrief() : openTutorial(); });
   $('dailyButton').addEventListener('click', () => { unlockAudio(); openRewards(); });
@@ -1659,8 +1708,8 @@
   $('dailyClaimButton').addEventListener('click', claimDaily);
   $('dailyDoubleButton').addEventListener('click', doubleDaily);
   $('seasonBoostButton').addEventListener('click', boostSeason);
-  $('helpButton').addEventListener('click', openTutorial);
-  $('tutorialButton').addEventListener('click', finishTutorial);
+  $('helpButton').addEventListener('click', () => { unlockAudio(); openTutorial(); });
+  $('tutorialButton').addEventListener('click', () => { unlockAudio(); finishTutorial(); });
   $('goButton').addEventListener('click', startRun);
   $('bonusButton').addEventListener('click', activateBonusContract);
   $('magnetButton').addEventListener('click', activateMagnet);
