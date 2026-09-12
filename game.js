@@ -406,7 +406,9 @@
   }
 
   function setupAudio() {
-    if (window.ytgame?.system?.isAudioEnabled) {
+    const inPlayables = isPlayables();
+    if (!inPlayables) state.audioEnabled = true;
+    if (inPlayables && window.ytgame?.system?.isAudioEnabled) {
       try { state.audioEnabled = window.ytgame.system.isAudioEnabled() !== false; } catch (_) { state.audioEnabled = true; }
     }
     audioDebug('setup', {
@@ -416,6 +418,10 @@
     });
     if (window.ytgame?.system?.onAudioEnabledChange) {
       window.ytgame.system.onAudioEnabledChange((enabled) => {
+        if (!isPlayables()) {
+          audioDebug('audio-change-ignored', { reason: 'outside-playables', value: String(enabled) });
+          return;
+        }
         if (enabled !== true && enabled !== false) {
           audioDebug('audio-change-ignored', { value: String(enabled) });
           return;
