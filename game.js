@@ -387,6 +387,13 @@
     if (state.audioContext?.state === 'running') state.audioContext.suspend().catch(() => {});
   }
 
+  const AUDIO_DEBUG = typeof window.location?.search === 'string' && window.location.search.includes('audio-debug=1');
+
+  function audioDebug(event, details = {}) {
+    if (!AUDIO_DEBUG) return;
+    try { console.info(`[audio-debug] ${event} ${JSON.stringify(details)}`); } catch (_) {}
+  }
+
   function resumeAudio() {
     if (state.audioEnabled && !state.paused && state.audioContext?.state === 'suspended') {
       state.audioContext.resume().catch(() => {});
@@ -400,8 +407,13 @@
 
   function setupAudio() {
     if (window.ytgame?.system?.isAudioEnabled) {
-      try { state.audioEnabled = window.ytgame.system.isAudioEnabled(); } catch (_) { state.audioEnabled = true; }
+      try { state.audioEnabled = window.ytgame.system.isAudioEnabled() !== false; } catch (_) { state.audioEnabled = true; }
     }
+    audioDebug('setup', {
+      inPlayables: window.ytgame?.IN_PLAYABLES_ENV === true,
+      enabled: state.audioEnabled,
+      constructor: !!(window.AudioContext || window.webkitAudioContext)
+    });
     if (window.ytgame?.system?.onAudioEnabledChange) {
       window.ytgame.system.onAudioEnabledChange((enabled) => {
         state.audioEnabled = enabled === true;
@@ -412,17 +424,28 @@
   }
 
   function unlockAudio() {
-    if (!state.audioEnabled) return;
+    if (!state.audioEnabled) { audioDebug('unlock-blocked', { reason: 'disabled' }); return; }
     const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    if (!state.audioContext) state.audioContext = new AudioContext();
+    if (!AudioContext) { audioDebug('unlock-blocked', { reason: 'unsupported' }); return; }
+    if (!state.audioContext) {
+      try { state.audioContext = new AudioContext(); }
+      catch (error) { audioDebug('context-error', { message: String(error?.message || error) }); return; }
+    }
     BACKGROUND_MUSIC.attach(state.audioContext);
-    if (state.audioContext.state === 'suspended') state.audioContext.resume().catch(() => {});
+    audioDebug('context-ready', { state: state.audioContext.state });
+    if (state.audioContext.state === 'suspended') {
+      state.audioContext.resume()
+        .then(() => audioDebug('context-resumed', { state: state.audioContext.state }))
+        .catch((error) => audioDebug('resume-error', { message: String(error?.message || error) }));
+    }
   }
 
   function sfx(name) {
     const audio = state.audioContext;
-    if (!state.audioEnabled || state.paused || !audio || audio.state !== 'running') return;
+    if (!state.audioEnabled || state.paused || !audio || audio.state !== 'running') {
+      if (name === 'start') audioDebug('sfx-blocked', { name, enabled: state.audioEnabled, paused: state.paused, context: audio?.state || 'missing' });
+      return;
+    }
     const notes = {
       start: [330, 494], pickup: [520], rare: [660, 990], sort: [390, 585],
       contract: [440, 660, 880], spill: [180, 120], reward: [523, 784, 1047],
