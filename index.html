@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#10253b">
+  <meta name="description" content="Clean, sort, and rebuild a colorful city in fast one-minute runs.">
+  <title>Clean City: Rebuild Rush</title>
+  <link rel="stylesheet" href="styles.css?v=7.1">
+</head>
+<body>
+  <main id="gameShell" aria-label="Clean City: Rebuild Rush game">
+    <canvas id="gameCanvas" aria-label="Top-down cleanup game area"></canvas>
+
+    <header id="hud" class="hud hidden" aria-live="polite">
+      <div class="hud-chip timer-chip"><span class="hud-label">TIME</span><strong id="timer">60</strong></div>
+      <div class="hud-chip score-chip"><span class="salvage-mark">♻</span><strong id="runScore">0</strong></div>
+      <div class="hud-chip cargo-chip">
+        <span class="hud-label">CARGO</span>
+        <span class="cargo-meter"><i id="cargoFill"></i></span>
+        <strong id="cargoCount">0/8</strong>
+      </div>
+      <div id="comboChip" class="hud-chip combo-chip"><span>CHAIN</span><strong id="comboValue">×1</strong></div>
+    </header>
+
+    <div id="contractBar" class="contract hidden">
+      <span>CONTRACT</span>
+      <strong id="contractText">Sort 8 YELLOW plastic</strong>
+      <i><b id="contractFill"></b></i>
+    </div>
+    <div id="guideBar" class="guide-bar hidden" role="status" aria-live="polite">
+      <span id="guideIcon">1</span><strong id="guideText">Drive over bright junk to collect it</strong>
+    </div>
+
+    <button id="magnetButton" class="reward-button hidden" type="button" aria-label="Activate super magnet reward">
+      <span class="reward-icon">⚡</span>
+      <span><strong>SUPER MAGNET</strong><small>WATCH AD</small></span>
+    </button>
+    <button id="recoveryButton" class="reward-button recovery-button hidden" type="button" aria-label="Recover spilled cargo with a rewarded ad">
+      <span class="reward-icon">↩</span>
+      <span><strong>RECOVER CARGO</strong><small>WATCH AD</small></span>
+    </button>
+
+    <section id="startScreen" class="screen start-screen">
+      <button id="dailyButton" class="daily-button" type="button" aria-label="Open daily rewards and challenges">🎁 DAILY <span id="dailyBadge" class="daily-badge">!</span></button>
+      <button id="helpButton" class="help-button" type="button" aria-label="Open how to play tutorial">? HOW TO PLAY</button>
+      <div class="game-badge" aria-hidden="true">♻</div>
+      <p id="homeAreaLabel" class="eyebrow">AREA 1 OF 4 · GREEN PARK</p>
+      <h1>CLEAN CITY<span>REBUILD RUSH</span></h1>
+      <p class="start-copy">Collect junk. Sort your cargo. Bring the neighborhood back to life.</p>
+      <div class="mission-card">
+        <div class="bot-portrait" aria-hidden="true"><span>•ᴗ•</span></div>
+        <div><small>NEXT CLEANUP</small><strong id="missionName">Park Picnic Rescue</strong><span id="missionSub">60-second park cleanup</span></div>
+        <div class="mission-reward"><small>BEST</small><strong id="bestScoreValue">0</strong></div>
+      </div>
+      <button id="playButton" class="primary-button" type="button">START CLEANUP <span>→</span></button>
+      <div class="progress-line"><span>World restored</span><strong id="homeProgressText">0%</strong><i><b id="homeProgressFill"></b></i></div>
+      <p class="control-hint"><span>DRAG</span> to steer · <span>WASD</span> or arrow keys on desktop</p>
+    </section>
+
+    <section id="rewardsScreen" class="screen rewards-screen hidden">
+      <div class="rewards-top">
+        <div><p class="eyebrow">COME BACK · CLEAN MORE</p><h2>DAILY CLEANUP</h2></div>
+        <button id="rewardsBackButton" class="close-button" type="button" aria-label="Return to the city">✕</button>
+      </div>
+
+      <div class="rewards-scroll">
+        <article class="retention-card checkin-card">
+          <div class="retention-heading">
+            <div><small>7-DAY CHECK-IN</small><strong id="dailyStreak">DAY 1 STREAK</strong></div>
+            <div class="daily-prize">♻ <strong id="dailyRewardValue">30</strong></div>
+          </div>
+          <div id="streakTrack" class="streak-track" aria-label="Seven day reward streak"></div>
+          <button id="dailyClaimButton" class="claim-button" type="button">CLAIM TODAY'S REWARD</button>
+          <button id="dailyDoubleButton" class="reward-wide compact-reward" type="button"><span>▶</span><strong>DOUBLE TODAY'S REWARD</strong><small>One optional rewarded ad</small></button>
+        </article>
+
+        <div class="section-title"><div><small>REFRESHES DAILY</small><strong>TODAY'S CHALLENGES</strong></div><span>+ season XP</span></div>
+        <div id="dailyChallenges" class="challenge-list"></div>
+
+        <article class="retention-card season-card">
+          <div class="retention-heading">
+            <div><small>FREE MONTHLY SEASON PASS</small><strong id="seasonTitle">GREEN SEASON</strong></div>
+            <div id="seasonXpText" class="season-xp">0 XP</div>
+          </div>
+          <p class="season-copy">Every cleanup and daily challenge moves you toward bonus salvage. No purchase needed.</p>
+          <div class="season-progress"><i id="seasonFill"></i></div>
+          <div id="seasonTrack" class="season-track"></div>
+          <button id="seasonBoostButton" class="reward-wide compact-reward season-boost" type="button"><span>▶</span><strong>SEASON XP BOOST</strong><small>+100 XP today · optional rewarded ad</small></button>
+        </article>
+      </div>
+
+      <button id="rewardsHomeButton" class="primary-button rewards-home" type="button">BACK TO CITY <span>→</span></button>
+    </section>
+
+    <section id="tutorialScreen" class="screen tutorial-screen hidden">
+      <p class="eyebrow">10-SECOND TUTORIAL</p>
+      <h2>CLEAN. SORT.<br>REBUILD.</h2>
+      <div class="tutorial-list">
+        <article>
+          <span class="tutorial-number collect">1</span>
+          <div><strong>COLLECT BRIGHT JUNK</strong><small>Drive over blue paper, yellow plastic, or silver metal.</small></div>
+          <div class="tutorial-samples" aria-hidden="true"><i class="sample paper"></i><i class="sample plastic"></i><i class="sample metal"></i></div>
+        </article>
+        <article>
+          <span class="tutorial-number sort">2</span>
+          <div><strong>MATCH THE COLOR</strong><small>Carry junk into the depot with the same color to score.</small></div>
+          <div class="depot-sample" aria-hidden="true">DEPOT</div>
+        </article>
+        <article>
+          <span class="tutorial-number avoid">!</span>
+          <div><strong>AVOID DARK HAZARDS</strong><small>Mud, oil, and sludge slow you and can spill half your cargo.</small></div>
+          <div class="oil-sample" aria-hidden="true">!</div>
+        </article>
+      </div>
+      <p class="tutorial-controls"><strong>DRAG OR TAP</strong> where you want the robot to drive.</p>
+      <button id="tutorialButton" class="primary-button" type="button">GOT IT <span>→</span></button>
+    </section>
+
+    <section id="briefScreen" class="screen brief-screen hidden">
+      <p id="briefAreaStep" class="eyebrow">AREA 1 OF 4 · CLEANUP CONTRACT</p>
+      <h2 id="briefTitle">PARK PICNIC<br>RESCUE</h2>
+      <div class="brief-grid">
+        <div id="briefPaper"><span class="brief-icon blue">▰</span><strong>Paper</strong><small>Blue depot</small></div>
+        <div id="briefPlastic"><span class="brief-icon yellow">●</span><strong>Plastic</strong><small>Yellow depot</small></div>
+        <div id="briefMetal"><span class="brief-icon silver">◆</span><strong>Metal</strong><small>Silver depot</small></div>
+      </div>
+      <p id="briefGoal"><strong>GOAL:</strong> Sort 8 yellow plastic bottles. Collect any bright junk, then deliver it to the same-color depot.</p>
+      <button id="bonusButton" class="reward-wide brief-reward" type="button"><span>▶</span><strong>VIP CLEANUP CONTRACT</strong><small>+60 salvage if you finish · rewarded ad</small></button>
+      <button id="goButton" class="primary-button" type="button">LET'S ROLL <span>→</span></button>
+    </section>
+
+    <section id="resultScreen" class="screen result-screen hidden">
+      <p id="resultAreaLabel" class="eyebrow">GREEN PARK · SHIFT COMPLETE</p>
+      <h2 id="resultHeading">THE BLOCK<br>LOOKS BETTER!</h2>
+      <div class="result-score"><span>♻</span><strong id="earnedSalvage">0</strong><small>SALVAGE EARNED</small></div>
+      <div class="result-stats">
+        <div><strong id="itemsSorted">0</strong><span>Sorted</span></div>
+        <div><strong id="bestCombo">0</strong><span>Best chain</span></div>
+        <div><strong id="cargoTier">1</strong><span>Bot tier</span></div>
+      </div>
+      <button id="doubleButton" class="reward-wide" type="button"><span>▶</span><strong>DOUBLE SALVAGE</strong><small>Rewarded ad</small></button>
+      <button id="rebuildButton" class="primary-button" type="button">REBUILD THE BLOCK <span>→</span></button>
+    </section>
+
+    <section id="rebuildScreen" class="screen rebuild-screen hidden">
+      <div class="rebuild-top">
+        <div><p id="rebuildAreaLabel" class="eyebrow">WORLD RESTORATION</p><h2>REBUILD</h2></div>
+        <div class="wallet">♻ <strong id="walletValue">0</strong></div>
+      </div>
+      <div id="projectList" class="project-list"></div>
+      <button id="supplyButton" class="reward-wide supply-button" type="button"><span>▶</span><strong>RECYCLED SUPPLY DROP</strong><small>+50 salvage · rewarded ad</small></button>
+      <button id="nextRunButton" class="primary-button" type="button">NEXT CLEANUP <span>→</span></button>
+    </section>
+
+    <div id="toast" class="toast hidden" role="status" aria-live="assertive"></div>
+  </main>
+  <script src="https://www.youtube.com/game_api/v1"></script>
+  <script src="game.js?v=7.1"></script>
+</body>
+</html>
