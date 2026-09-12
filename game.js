@@ -416,7 +416,11 @@
     });
     if (window.ytgame?.system?.onAudioEnabledChange) {
       window.ytgame.system.onAudioEnabledChange((enabled) => {
-        state.audioEnabled = enabled === true;
+        if (enabled !== true && enabled !== false) {
+          audioDebug('audio-change-ignored', { value: String(enabled) });
+          return;
+        }
+        state.audioEnabled = enabled;
         if (state.audioEnabled) resumeAudio();
         else suspendAudio();
       });
