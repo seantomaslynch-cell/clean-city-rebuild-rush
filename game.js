@@ -492,6 +492,7 @@
     let nextStepAt = 0;
     let step = 0;
     let currentVolume = .0001;
+    let debugScheduled = false;
 
     function attach(context) {
       if (!context || audio === context) return;
@@ -503,6 +504,7 @@
       nextStepAt = 0;
       step = 0;
       currentVolume = .0001;
+      debugScheduled = false;
     }
 
     function frequency(root, semitones, octave = 0) {
@@ -535,14 +537,14 @@
       const stepLength = 60 / (rush ? 124 : 112) / 2;
       const arpTone = chord.tones[ARP[chordStep]];
 
-      voice(frequency(chord.root, arpTone, 1), when, stepLength * .68, 'triangle', rush ? .022 : .018);
-      if (chordStep % 2 === 0) voice(chord.root / 2, when, stepLength * 1.45, 'sine', .022, .02);
+      voice(frequency(chord.root, arpTone, 1), when, stepLength * .68, 'triangle', rush ? .052 : .045);
+      if (chordStep % 2 === 0) voice(chord.root / 2, when, stepLength * 1.45, 'sine', .04, .02);
       if (chordStep === 3 || chordStep === 7) {
-        voice(frequency(chord.root, chord.tones[(chordStep + 1) % 4], 2), when, stepLength * .42, 'sine', rush ? .012 : .008);
+        voice(frequency(chord.root, chord.tones[(chordStep + 1) % 4], 2), when, stepLength * .42, 'sine', rush ? .022 : .018);
       }
       if (chordStep === 0) {
         chord.tones.slice(0, 3).forEach((tone, toneIndex) => {
-          voice(frequency(chord.root, tone), when + toneIndex * .012, stepLength * 6.6, 'sine', .0055, .16);
+          voice(frequency(chord.root, tone), when + toneIndex * .012, stepLength * 6.6, 'sine', .012, .16);
         });
       }
       return stepLength;
@@ -570,6 +572,7 @@
       }
       nextStepAt = 0;
       step = 0;
+      debugScheduled = false;
     }
 
     function update(runLeft) {
@@ -577,13 +580,17 @@
       const rush = runLeft <= 15;
       const now = audio.currentTime;
       if (!nextStepAt || nextStepAt < now - .1) nextStepAt = now + .05;
-      const targetVolume = rush ? .075 : .058;
+      const targetVolume = rush ? .32 : .25;
       if (targetVolume !== currentVolume) {
         musicBus.gain.cancelScheduledValues(now);
         musicBus.gain.setTargetAtTime(targetVolume, now, .18);
         currentVolume = targetVolume;
       }
       while (nextStepAt < now + .35) {
+        if (!debugScheduled) {
+          audioDebug('music-scheduled', { context: audio.state, volume: targetVolume });
+          debugScheduled = true;
+        }
         nextStepAt += scheduleStep(nextStepAt, step, rush);
         step = (step + 1) % 32;
       }
