@@ -149,7 +149,7 @@ h2 { font-size: clamp(2.8rem, 10vw, 5.7rem); }
 .brief-grid > div.contract-target { background: #fff7c6; box-shadow: 0 5px 0 var(--yellow); transform: translateY(-3px); }
 .brief-grid strong, .brief-grid small { display: block; }
 .brief-grid small { margin-top: 4px; color: #637a8b; font-size: .78rem; }
-.brief-icon { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 auto 8px; border: 3px solid var(--ink); border-radius: 50%; }
+.brief-icon { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 auto 8px; border: 3px solid var(--ink); border-radius: 50%; font-size: 1.35rem; }
 .brief-icon.blue { background: #6dc4ff; }.brief-icon.yellow { background: var(--yellow); }.brief-icon.silver { background: #bac9d4; }
 
 .hud { position: absolute; z-index: 3; left: 14px; right: 14px; top: max(12px, env(safe-area-inset-top)); display: grid; grid-template-columns: auto auto 1fr auto; gap: 8px; pointer-events: none; }
@@ -315,8 +315,7 @@ h2 { font-size: clamp(2.8rem, 10vw, 5.7rem); }
 .tutorial-number { display: grid; place-items: center; width: 42px; height: 42px; border: 3px solid var(--ink); border-radius: 50%; font-weight: 1000; }
 .tutorial-number.collect { background: var(--green); }.tutorial-number.sort { background: var(--yellow); }.tutorial-number.avoid { background: var(--coral); color: #fff; }
 .tutorial-samples { display: flex; align-items: center; gap: 5px; }
-.sample { display: block; width: 20px; height: 20px; border: 2px solid var(--ink); background: var(--blue); }
-.sample.paper { border-radius: 3px; }.sample.plastic { border-radius: 50%; background: var(--yellow); }.sample.metal { background: #c2d1dc; transform: rotate(45deg); }
+.sample-object { display: grid; place-items: center; width: 27px; height: 27px; border: 2px solid var(--ink); border-radius: 7px; background: #fff; font-size: 1rem; }
 .depot-sample { padding: 8px 7px; border: 3px solid var(--ink); border-radius: 7px; background: var(--yellow); font-size: .62rem; font-weight: 1000; }
 .oil-sample { display: grid; place-items: center; width: 52px; height: 34px; border: 3px dashed var(--yellow); border-radius: 50%; background: #18222f; color: #fff; font-size: .62rem; font-weight: 1000; transform: rotate(-5deg); }
 .tutorial-controls { margin: 0 0 14px; color: #49657a; font-size: .86rem; }

@@ -24,6 +24,35 @@
     plastic: { color: '#ffd447', dark: '#b97700', label: 'PLASTIC' },
     metal: { color: '#c2d1dc', dark: '#5c7182', label: 'METAL' }
   };
+  const JUNK_CATALOG = {
+    park: {
+      paper: ['paper-cup', 'snack-carton', 'newspaper'],
+      plastic: ['water-bottle', 'picnic-tub', 'drink-cup'],
+      metal: ['drink-can', 'food-tin']
+    },
+    street: {
+      paper: ['flyer', 'cardboard-box', 'coffee-cup'],
+      plastic: ['water-bottle', 'takeout-tub', 'cleaner-bottle'],
+      metal: ['drink-can', 'food-tin']
+    },
+    dog: {
+      paper: ['paper-bag', 'treat-box', 'paper-cup'],
+      plastic: ['water-bottle', 'shampoo-bottle', 'takeout-tub'],
+      metal: ['pet-food-can', 'drink-can']
+    },
+    river: {
+      paper: ['drink-carton', 'paper-cup', 'cardboard-box'],
+      plastic: ['water-bottle', 'detergent-jug', 'takeout-tub'],
+      metal: ['drink-can', 'food-tin']
+    }
+  };
+  const JUNK_LABELS = {
+    'paper-cup': 'PAPER CUP', 'coffee-cup': 'COFFEE CUP', 'snack-carton': 'SNACK BOX', newspaper: 'NEWSPAPER',
+    flyer: 'FLYER', 'cardboard-box': 'CARDBOARD', 'paper-bag': 'PAPER BAG', 'treat-box': 'TREAT BOX', 'drink-carton': 'CARTON',
+    'water-bottle': 'BOTTLE', 'picnic-tub': 'FOOD TUB', 'drink-cup': 'DRINK CUP', 'takeout-tub': 'TAKEOUT TUB',
+    'cleaner-bottle': 'CLEANER BOTTLE', 'shampoo-bottle': 'SHAMPOO BOTTLE', 'detergent-jug': 'DETERGENT JUG',
+    'drink-can': 'DRINK CAN', 'food-tin': 'FOOD TIN', 'pet-food-can': 'PET FOOD CAN'
+  };
   const LEVELS = [
     { name: 'Green Park', mission: 'Park Picnic Rescue', title: 'PARK PICNIC<br>RESCUE', contractType: 'plastic', goal: 8, target: 'yellow plastic bottles', hazard: 'MUD', world: 'park' },
     { name: 'Main Street', mission: 'Downtown Sweep', title: 'DOWNTOWN<br>SWEEP', contractType: 'paper', goal: 10, target: 'blue paper flyers', hazard: 'OIL', world: 'street' },
@@ -1027,6 +1056,8 @@
   function spawnTrash() {
     const values = Object.keys(TYPES);
     const type = Math.random() < .45 ? state.contractType : values[Math.floor(Math.random() * values.length)];
+    const kindPool = JUNK_CATALOG[currentLevel().world]?.[type] || JUNK_CATALOG.park[type];
+    const kind = kindPool[Math.floor(Math.random() * kindPool.length)];
     let x, y;
     const minY = state.width > state.height ? .28 : .40;
     do {
@@ -1035,7 +1066,7 @@
     } while (Math.hypot(x - state.player.x, y - state.player.y) < .15);
     const size = Math.random() < .16 ? 2 : 1;
     const rare = Math.random() < .07;
-    state.trash.push({ type, x, y, size, rare, rot: Math.random() * Math.PI * 2, bob: Math.random() * 6.28 });
+    state.trash.push({ type, kind, x, y, size, rare, rot: Math.random() * Math.PI * 2, bob: Math.random() * 6.28 });
   }
 
   async function requestReward(id, grant, sourceButton) {
@@ -1332,7 +1363,8 @@
           for (let unit = 0; unit < item.size; unit++) p.cargo.push({ type: item.type, value: item.rare ? 2 : 1 });
           state.trash.splice(i, 1);
           burst(item.x, item.y, TYPES[item.type].color, 5);
-          floater(item.x, item.y, item.rare ? 'RARE ×2' : `+${item.size}`, item.rare ? '#9b6700' : TYPES[item.type].dark);
+          const itemName = JUNK_LABELS[item.kind] || TYPES[item.type].label;
+          floater(item.x, item.y, item.rare ? `BONUS ${itemName} ×2` : `${itemName} +${item.size}`, item.rare ? '#9b6700' : TYPES[item.type].dark);
           sfx(item.rare ? 'rare' : 'pickup');
           if (p.cargo.length >= 6 && p.tier === 1) p.tier = 2;
           if (p.cargo.length >= 10 && p.tier === 2) p.tier = 3;
@@ -1607,29 +1639,143 @@
     });
   }
 
+  function drawPaperJunk(kind, size) {
+    ctx.strokeStyle = '#10253b';
+    ctx.lineWidth = 2.4;
+    ctx.lineJoin = 'round';
+    if (kind === 'newspaper' || kind === 'flyer') {
+      const wide = kind === 'newspaper';
+      const width = size * (wide ? 2.05 : 1.45);
+      const height = size * (wide ? 1.35 : 1.8);
+      ctx.fillStyle = '#eaf7ff';
+      roundedRect(-width / 2, -height / 2, width, height, size * .12); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = TYPES.paper.color;
+      roundedRect(-width * .38, -height * .34, width * .76, height * .24, 2); ctx.fill();
+      ctx.strokeStyle = TYPES.paper.dark; ctx.lineWidth = 1.4;
+      for (let line = 0; line < 3; line++) {
+        const lineY = height * (.04 + line * .17);
+        ctx.beginPath(); ctx.moveTo(-width * .35, lineY); ctx.lineTo(width * (.28 - line * .04), lineY); ctx.stroke();
+      }
+      return;
+    }
+    if (kind === 'paper-cup' || kind === 'coffee-cup') {
+      ctx.fillStyle = '#eaf7ff';
+      ctx.beginPath();
+      ctx.moveTo(-size * .68, -size * .68); ctx.lineTo(size * .68, -size * .68);
+      ctx.lineTo(size * .48, size * .82); ctx.lineTo(-size * .48, size * .82); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = TYPES.paper.color; ctx.fillRect(-size * .56, -size * .05, size * 1.12, size * .42);
+      ctx.fillStyle = '#d8e4eb';
+      ctx.beginPath(); ctx.ellipse(0, -size * .72, size * .76, size * .19, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      return;
+    }
+    if (kind === 'paper-bag') {
+      ctx.fillStyle = '#d9b77e';
+      roundedRect(-size * .72, -size * .58, size * 1.44, size * 1.45, size * .08); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, -size * .54, size * .42, Math.PI, 0); ctx.stroke();
+      ctx.fillStyle = TYPES.paper.color; roundedRect(-size * .45, 0, size * .9, size * .34, 2); ctx.fill();
+      return;
+    }
+    const drinkCarton = kind === 'drink-carton';
+    ctx.fillStyle = drinkCarton ? '#f5f1dd' : '#e4c48a';
+    roundedRect(-size * .72, -size * .62, size * 1.44, size * 1.48, size * .1); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = TYPES.paper.color; roundedRect(-size * .53, -size * .15, size * 1.06, size * .52, 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-size * .72, -size * .62); ctx.lineTo(-size * .2, -size * 1.02); ctx.lineTo(size * .72, -size * .62); ctx.closePath();
+    ctx.fillStyle = '#f0d7a8'; ctx.fill(); ctx.stroke();
+    if (drinkCarton) {
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(size * .32, -size * .61, size * .14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  }
+
+  function drawPlasticJunk(kind, size) {
+    ctx.strokeStyle = '#10253b';
+    ctx.lineWidth = 2.4;
+    ctx.lineJoin = 'round';
+    if (kind === 'picnic-tub' || kind === 'takeout-tub') {
+      ctx.fillStyle = '#fff7bf';
+      roundedRect(-size, -size * .48, size * 2, size * 1.12, size * .22); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = TYPES.plastic.color;
+      roundedRect(-size * 1.08, -size * .67, size * 2.16, size * .37, size * .16); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = TYPES.plastic.dark; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(-size * .62, size * .12); ctx.lineTo(size * .62, size * .12); ctx.stroke();
+      return;
+    }
+    if (kind === 'drink-cup') {
+      ctx.fillStyle = '#fff6b3';
+      ctx.beginPath(); ctx.moveTo(-size * .7, -size * .55); ctx.lineTo(size * .7, -size * .55); ctx.lineTo(size * .48, size * .83); ctx.lineTo(-size * .48, size * .83); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = TYPES.plastic.color; roundedRect(-size * .78, -size * .72, size * 1.56, size * .27, size * .1); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e65c4f'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(size * .18, -size * .7); ctx.lineTo(size * .42, -size * 1.12); ctx.stroke();
+      return;
+    }
+    if (kind === 'detergent-jug') {
+      ctx.fillStyle = '#fff4a6';
+      roundedRect(-size * .85, -size * .7, size * 1.7, size * 1.58, size * .25); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = TYPES.plastic.color; roundedRect(-size * .22, -size * 1.02, size * .72, size * .38, size * .09); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#eaf7ff'; ctx.beginPath(); ctx.arc(size * .35, -size * .3, size * .28, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff'; roundedRect(-size * .58, size * .08, size * .9, size * .42, 2); ctx.fill();
+      return;
+    }
+    const wide = kind === 'cleaner-bottle' || kind === 'shampoo-bottle';
+    ctx.fillStyle = wide ? '#fff4a6' : '#fff8c9';
+    ctx.beginPath();
+    ctx.moveTo(-size * .28, -size * 1.02); ctx.lineTo(size * .28, -size * 1.02);
+    ctx.lineTo(size * .3, -size * .72); ctx.quadraticCurveTo(size * (wide ? .78 : .58), -size * .56, size * (wide ? .74 : .58), -size * .18);
+    ctx.lineTo(size * (wide ? .64 : .52), size * .82); ctx.quadraticCurveTo(0, size * 1.02, -size * (wide ? .64 : .52), size * .82);
+    ctx.lineTo(-size * (wide ? .74 : .58), -size * .18); ctx.quadraticCurveTo(-size * (wide ? .78 : .58), -size * .56, -size * .3, -size * .72); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = TYPES.plastic.color; roundedRect(-size * .36, -size * 1.2, size * .72, size * .25, size * .08); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; roundedRect(-size * .45, -size * .2, size * .9, size * .45, size * .08); ctx.fill();
+    ctx.strokeStyle = TYPES.plastic.dark; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-size * .28, size * .02); ctx.lineTo(size * .28, size * .02); ctx.stroke();
+  }
+
+  function drawMetalJunk(kind, size) {
+    ctx.strokeStyle = '#10253b';
+    ctx.lineWidth = 2.4;
+    ctx.lineJoin = 'round';
+    if (kind === 'food-tin' || kind === 'pet-food-can') {
+      ctx.fillStyle = '#dce7ee';
+      roundedRect(-size, -size * .5, size * 2, size, size * .2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = TYPES.metal.color;
+      ctx.beginPath(); ctx.ellipse(0, -size * .48, size, size * .25, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = TYPES.metal.dark; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(-size * .82, size * .18); ctx.lineTo(size * .82, size * .18); ctx.stroke();
+      if (kind === 'pet-food-can') {
+        ctx.fillStyle = '#ff9a76'; ctx.beginPath(); ctx.arc(0, 0, size * .22, 0, Math.PI * 2); ctx.fill();
+        [[-.2,-.23],[.2,-.23]].forEach(([dx, dy]) => { ctx.beginPath(); ctx.arc(dx * size, dy * size, size * .1, 0, Math.PI * 2); ctx.fill(); });
+      }
+      return;
+    }
+    ctx.fillStyle = '#dce7ee';
+    roundedRect(-size * .58, -size, size * 1.16, size * 2, size * .28); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = TYPES.metal.color;
+    ctx.beginPath(); ctx.ellipse(0, -size * .92, size * .55, size * .2, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = TYPES.metal.dark; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.ellipse(0, -size * .91, size * .2, size * .08, -.25, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#fff'; roundedRect(-size * .46, -size * .18, size * .92, size * .5, size * .08); ctx.fill();
+  }
+
   function drawTrash(item, now) {
     const w = state.width, h = state.height, scale = Math.min(w, h);
     const x = item.x * w, y = item.y * h + Math.sin(now / 330 + item.bob) * 2;
     const size = (item.size === 2 ? 15 : 11) + Math.min(5, scale / 150);
+    const fallbackKind = item.type === 'paper' ? 'newspaper' : item.type === 'plastic' ? 'water-bottle' : 'drink-can';
+    const kind = item.kind || fallbackKind;
     ctx.save(); ctx.translate(x, y); ctx.rotate(item.rot);
-    ctx.globalAlpha = .26 + Math.sin(now / 190 + item.bob) * .08;
-    ctx.fillStyle = TYPES[item.type].color; ctx.beginPath(); ctx.arc(0, 0, size * 1.65, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = .24 + Math.sin(now / 190 + item.bob) * .07;
+    ctx.fillStyle = TYPES[item.type].color; ctx.beginPath(); ctx.arc(0, 0, size * 1.7, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
     if (item.rare) {
-      ctx.save(); ctx.rotate(-item.rot + now / 420); ctx.globalAlpha = .38;
+      ctx.save(); ctx.rotate(-item.rot + now / 420); ctx.globalAlpha = .42;
       ctx.fillStyle = '#fff7a8'; ctx.strokeStyle = '#8a5b00'; ctx.lineWidth = 1.5;
       ctx.beginPath();
-      for (let i = 0; i < 8; i++) {
-        const radius = i % 2 ? size * .84 : size * 1.34;
-        const angle = i * Math.PI / 4;
-        i ? ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius) : ctx.moveTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+      for (let point = 0; point < 8; point++) {
+        const radius = point % 2 ? size * .84 : size * 1.38;
+        const angle = point * Math.PI / 4;
+        point ? ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius) : ctx.moveTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
       }
       ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
     }
-    ctx.fillStyle = TYPES[item.type].color; ctx.strokeStyle = '#10253b'; ctx.lineWidth = 2.5;
-    if (item.type === 'paper') { roundedRect(-size, -size * .65, size * 2, size * 1.3, 3); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-size * .55,-2); ctx.lineTo(size * .55,-2); ctx.stroke(); }
-    if (item.type === 'plastic') { ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-size*.5,-size*.6); ctx.lineTo(size*.45,size*.55); ctx.stroke(); }
-    if (item.type === 'metal') { ctx.beginPath(); for (let i=0;i<6;i++){ const a=i*Math.PI/3; const px=Math.cos(a)*size, py=Math.sin(a)*size; i?ctx.lineTo(px,py):ctx.moveTo(px,py); } ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    if (item.type === 'paper') drawPaperJunk(kind, size);
+    if (item.type === 'plastic') drawPlasticJunk(kind, size);
+    if (item.type === 'metal') drawMetalJunk(kind, size);
     ctx.restore();
   }
 

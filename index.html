@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#10253b">
   <meta name="description" content="Clean, sort, and rebuild a colorful city in fast one-minute runs.">
   <title>Clean City: Rebuild Rush</title>
-  <link rel="stylesheet" href="styles.css?v=7.7">
+  <link rel="stylesheet" href="styles.css?v=7.8">
 </head>
 <body>
   <main id="gameShell" aria-label="Clean City: Rebuild Rush game">
@@ -99,8 +99,8 @@
       <div class="tutorial-list">
         <article>
           <span class="tutorial-number collect">1</span>
-          <div><strong>COLLECT BRIGHT JUNK</strong><small>Drive over blue paper, yellow plastic, or silver metal. When cargo is full, sort at a matching depot.</small></div>
-          <div class="tutorial-samples" aria-hidden="true"><i class="sample paper"></i><i class="sample plastic"></i><i class="sample metal"></i></div>
+          <div><strong>COLLECT REAL RECYCLABLES</strong><small>Pick up bottles, cans, cups, cartons, and paper. When cargo is full, sort at a matching depot.</small></div>
+          <div class="tutorial-samples" aria-hidden="true"><span class="sample-object">📰</span><span class="sample-object">🧴</span><span class="sample-object">🥫</span></div>
         </article>
         <article>
           <span class="tutorial-number sort">2</span>
@@ -121,9 +121,9 @@
       <p id="briefAreaStep" class="eyebrow">AREA 1 OF 4 · CLEANUP CONTRACT</p>
       <h2 id="briefTitle">PARK PICNIC<br>RESCUE</h2>
       <div class="brief-grid">
-        <div id="briefPaper"><span class="brief-icon blue">▰</span><strong>Paper</strong><small>Blue depot</small></div>
-        <div id="briefPlastic"><span class="brief-icon yellow">●</span><strong>Plastic</strong><small>Yellow depot</small></div>
-        <div id="briefMetal"><span class="brief-icon silver">◆</span><strong>Metal</strong><small>Silver depot</small></div>
+        <div id="briefPaper"><span class="brief-icon blue">📰</span><strong>Paper</strong><small>Blue depot</small></div>
+        <div id="briefPlastic"><span class="brief-icon yellow">🧴</span><strong>Plastic</strong><small>Yellow depot</small></div>
+        <div id="briefMetal"><span class="brief-icon silver">🥫</span><strong>Metal</strong><small>Silver depot</small></div>
       </div>
       <p id="briefGoal"><strong>GOAL:</strong> Sort 8 yellow plastic bottles. Collect any bright junk, then deliver it to the same-color depot.</p>
       <button id="bonusButton" class="reward-wide brief-reward" type="button"><span>▶</span><strong>VIP CLEANUP CONTRACT</strong><small>+60 salvage if you finish · rewarded ad</small></button>
@@ -156,6 +156,6 @@
     <div id="toast" class="toast hidden" role="status" aria-live="assertive"></div>
   </main>
   <script src="https://www.youtube.com/game_api/v1"></script>
-  <script src="game.js?v=7.7"></script>
+  <script src="game.js?v=7.8"></script>
 </body>
 </html>
