@@ -56,6 +56,12 @@
     'cleaner-bottle': 'CLEANER BOTTLE', 'shampoo-bottle': 'SHAMPOO BOTTLE', 'detergent-jug': 'DETERGENT JUG',
     'drink-can': 'DRINK CAN', 'food-tin': 'FOOD TIN', 'pet-food-can': 'PET FOOD CAN'
   };
+  const HAZARD_CATALOG = {
+    park: [{ kind: 'mud', label: 'MUD PIT' }, { kind: 'thorns', label: 'THORN PATCH' }],
+    street: [{ kind: 'oil', label: 'OIL SPILL' }, { kind: 'roadwork', label: 'ROADWORK' }],
+    dog: [{ kind: 'mud-paws', label: 'MUDDY PAWS' }, { kind: 'dog-mess', label: 'DOG MESS' }],
+    river: [{ kind: 'sludge', label: 'TOXIC SLUDGE' }, { kind: 'barrel-leak', label: 'TOXIC LEAK' }]
+  };
   const LEVELS = [
     { name: 'Green Park', mission: 'Park Picnic Rescue', title: 'PARK PICNIC<br>RESCUE', contractType: 'plastic', goal: 8, target: 'yellow plastic bottles', hazard: 'MUD', world: 'park' },
     { name: 'Main Street', mission: 'Downtown Sweep', title: 'DOWNTOWN<br>SWEEP', contractType: 'paper', goal: 10, target: 'blue paper flyers', hazard: 'OIL', world: 'street' },
@@ -91,7 +97,7 @@
     season: { id: '', xp: 0, claimed: [], boostDate: '' },
     cosmetics: { unlocked: ['antenna-none', 'wheels-blue', 'trail-white'], equipped: { antenna: 'antenna-none', wheels: 'wheels-blue', trail: 'trail-white' } },
     prestige: { unlocked: false, enabled: false, activeRun: false, runs: 0 },
-    lostCargo: [], recoveryUntil: 0, lastHazardHit: 0, shakeUntil: 0, cargoBlockedUntil: 0, lastCargoBlockedAt: 0, audioEnabled: true, audioContext: null, trailTick: 0, frameId: 0, buildReveal: null,
+    lostCargo: [], recoveryUntil: 0, lastHazardHit: 0, lastHazardLabel: '', shakeUntil: 0, cargoBlockedUntil: 0, lastCargoBlockedAt: 0, audioEnabled: true, audioContext: null, trailTick: 0, frameId: 0, buildReveal: null,
     player: { x: .5, y: .7, tx: .5, ty: .7, r: 22, tier: 1, cargo: [], speed: .31 },
     trash: [], floaters: [], hazards: [], stations: [], nextSpawn: 0
   };
@@ -1118,6 +1124,7 @@
     state.lostCargo = [];
     state.recoveryUntil = 0;
     state.lastHazardHit = 0;
+    state.lastHazardLabel = '';
     state.shakeUntil = 0;
     state.cargoBlockedUntil = 0;
     state.lastCargoBlockedAt = 0;
@@ -1126,14 +1133,17 @@
     PARTICLE_POOL.reset();
     state.floaters = [];
     const hazardTemplates = [
-      { x: .27, y: .48, ox: .27, oy: .48, r: .065, phase: 0, label: level.hazard },
-      { x: .72, y: .68, ox: .72, oy: .68, r: .07, phase: 2.1, label: level.hazard },
-      { x: .54, y: state.width > state.height ? .34 : .54, ox: .54, oy: state.width > state.height ? .34 : .54, r: .052, phase: 4.4, label: level.hazard },
-      { x: .38, y: .76, ox: .38, oy: .76, r: .048, phase: 1.4, label: level.hazard },
-      { x: .82, y: .43, ox: .82, oy: .43, r: .046, phase: 3.6, label: level.hazard },
-      { x: .18, y: .67, ox: .18, oy: .67, r: .044, phase: 5.3, label: level.hazard }
+      { x: .27, y: .48, ox: .27, oy: .48, r: .065, phase: 0 },
+      { x: .72, y: .68, ox: .72, oy: .68, r: .07, phase: 2.1 },
+      { x: .54, y: state.width > state.height ? .34 : .54, ox: .54, oy: state.width > state.height ? .34 : .54, r: .052, phase: 4.4 },
+      { x: .38, y: .76, ox: .38, oy: .76, r: .048, phase: 1.4 },
+      { x: .82, y: .43, ox: .82, oy: .43, r: .046, phase: 3.6 },
+      { x: .18, y: .67, ox: .18, oy: .67, r: .044, phase: 5.3 }
     ];
-    state.hazards = hazardTemplates.slice(0, PHASE3.cityDifficulty().hazardCount);
+    const hazardPool = HAZARD_CATALOG[level.world] || HAZARD_CATALOG.park;
+    state.hazards = hazardTemplates
+      .slice(0, PHASE3.cityDifficulty().hazardCount)
+      .map((hazard, index) => ({ ...hazard, ...hazardPool[index % hazardPool.length] }));
     for (let i = 0; i < 34; i++) spawnTrash();
     updateHud();
   }
@@ -1155,12 +1165,16 @@
     const type = Math.random() < .45 ? state.contractType : values[Math.floor(Math.random() * values.length)];
     const kindPool = JUNK_CATALOG[currentLevel().world]?.[type] || JUNK_CATALOG.park[type];
     const kind = kindPool[Math.floor(Math.random() * kindPool.length)];
-    let x, y;
+    let x, y, attempts = 0;
     const minY = state.width > state.height ? .28 : .40;
     do {
       x = .12 + Math.random() * .76;
       y = minY + Math.random() * (.91 - minY);
-    } while (Math.hypot(x - state.player.x, y - state.player.y) < .15);
+      attempts += 1;
+    } while (attempts < 24 && (
+      Math.hypot(x - state.player.x, y - state.player.y) < .15 ||
+      state.hazards.some((hazard) => Math.hypot(x - hazard.x, y - hazard.y) < hazard.r + .065)
+    ));
     const size = Math.random() < .16 ? 2 : 1;
     const rare = Math.random() < .07;
     state.trash.push({ type, kind, x, y, size, rare, rot: Math.random() * Math.PI * 2, bob: Math.random() * 6.28 });
@@ -1423,7 +1437,7 @@
     if (state.lostCargo.length && now < state.recoveryUntil) {
       ui.guideBar.classList.add('danger');
       ui.guideIcon.textContent = '!';
-      ui.guideText.textContent = `${currentLevel().hazard} SPILL — steer around dark hazards`;
+      ui.guideText.textContent = `${state.lastHazardLabel || currentLevel().hazard} HIT — avoid pulsing danger zones`;
       return;
     }
     if (cargoBlocked) {
@@ -1468,7 +1482,7 @@
     });
     const hazard = state.hazards.find((h) => Math.hypot(p.x - h.x, p.y - h.y) < h.r);
     const slow = hazard ? .45 : 1;
-    if (hazard && now - state.lastHazardHit > 4500 && p.cargo.length >= 4) spillCargo(now);
+    if (hazard && now - state.lastHazardHit > 4500 && p.cargo.length >= 4) spillCargo(now, hazard);
     const speed = p.speed * slow * dt;
     const tx = p.tx - p.x, ty = p.ty - p.y, dist = Math.hypot(tx, ty);
     if (dist > .006) {
@@ -1539,11 +1553,12 @@
     showToast(full ? 'Cargo full — sort at a matching color depot!' : 'Not enough room — sort cargo to make space!');
   }
 
-  function spillCargo(now) {
+  function spillCargo(now, hazard) {
     const amount = Math.max(2, Math.floor(state.player.cargo.length / 2));
     state.lostCargo = state.player.cargo.splice(-amount);
     state.recoveryUntil = now + 6500;
     state.lastHazardHit = now;
+    state.lastHazardLabel = hazard?.label || currentLevel().hazard;
     state.combo = 0;
     state.cargoBlockedUntil = 0;
     state.shakeUntil = now + 350;
@@ -1551,7 +1566,7 @@
     burst(state.player.x, state.player.y, '#ff6e5b', 16);
     floater(state.player.x, state.player.y, `SPILL! −${amount}`, '#d83f35');
     sfx('spill');
-    showToast(`${currentLevel().hazard} spill! Recover cargo or keep cleaning.`);
+    showToast(`${state.lastHazardLabel} hit! Recover cargo or keep cleaning.`);
   }
 
   function insideStation(p, station) {
@@ -1746,8 +1761,8 @@
     drawWorld(now);
     if (state.mode === 'playing') {
       drawStations(now);
-      drawHazards(now);
       state.trash.forEach((item) => drawTrash(item, now));
+      drawHazards(now);
       drawParticles();
       drawRobot(now);
       drawFloaters();
@@ -2008,14 +2023,220 @@
     });
   }
 
+  function drawHazardBlob(x, y, r, phase, now, fill, stroke, squash = .62) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.sin(phase * 2.7) * .18);
+    ctx.beginPath();
+    for (let point = 0; point < 14; point += 1) {
+      const angle = point / 14 * Math.PI * 2;
+      const wobble = .86 + Math.sin(point * 4.13 + phase * 3.1 + now * .0012) * .1;
+      const px = Math.cos(angle) * r * wobble;
+      const py = Math.sin(angle) * r * squash * (1 + Math.cos(point * 2.3 + phase) * .07);
+      if (!point) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = Math.max(2, r * .08);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawDangerRing(x, y, r, phase, now) {
+    const pulse = 1 + Math.sin(now / 150 + phase) * .06;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,212,71,.92)';
+    ctx.lineWidth = Math.max(2.2, r * .085);
+    ctx.setLineDash([Math.max(5, r * .22), Math.max(4, r * .13)]);
+    ctx.lineDashOffset = -now * .018;
+    ctx.shadowColor = 'rgba(255,126,43,.82)';
+    ctx.shadowBlur = Math.max(5, r * .22);
+    ctx.beginPath();
+    ctx.ellipse(x, y, r * 1.13 * pulse, r * .76 * pulse, .12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    const badgeX = x + r * .74;
+    const badgeY = y - r * .58;
+    const badge = Math.max(7, r * .24) * (1 + Math.sin(now / 180 + phase) * .08);
+    ctx.save();
+    ctx.translate(badgeX, badgeY);
+    ctx.shadowColor = 'rgba(239,73,53,.65)';
+    ctx.shadowBlur = badge * .65;
+    ctx.fillStyle = '#ffd447';
+    ctx.strokeStyle = '#692019';
+    ctx.lineWidth = Math.max(1.7, badge * .15);
+    ctx.beginPath();
+    ctx.moveTo(0, -badge);
+    ctx.lineTo(badge * .9, badge * .72);
+    ctx.lineTo(-badge * .9, badge * .72);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#532018';
+    ctx.lineWidth = Math.max(2, badge * .18);
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -badge * .47); ctx.lineTo(0, badge * .18); ctx.stroke();
+    ctx.fillStyle = '#532018'; ctx.beginPath(); ctx.arc(0, badge * .46, badge * .1, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawHazardPaw(x, y, size, rotation, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.ellipse(0, size * .14, size * .3, size * .23, 0, 0, Math.PI * 2); ctx.fill();
+    [[-.27, -.16], [-.09, -.3], [.12, -.31], [.3, -.14]].forEach(([px, py]) => {
+      ctx.beginPath(); ctx.ellipse(px * size, py * size, size * .105, size * .14, 0, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  function drawMudPit(x, y, r, phase, now) {
+    drawHazardBlob(x, y, r, phase, now, '#6c4227', '#3d291d');
+    ctx.save();
+    ctx.strokeStyle = 'rgba(246,196,115,.58)'; ctx.lineWidth = Math.max(1.5, r * .055);
+    ctx.beginPath(); ctx.ellipse(x - r * .12, y - r * .05, r * .45, r * .19, -.12, Math.PI * .12, Math.PI * 1.05); ctx.stroke();
+    ctx.fillStyle = 'rgba(245,205,137,.48)';
+    ctx.beginPath(); ctx.ellipse(x - r * .38, y - r * .13, r * .1, r * .055, -.2, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(x + r * .22, y - r * .02); ctx.rotate(-.35);
+    ctx.fillStyle = '#2c261f';
+    ctx.beginPath(); ctx.ellipse(0, 0, r * .16, r * .3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#aa8051';
+    for (let tread = -1; tread <= 1; tread += 1) ctx.fillRect(-r * .12, tread * r * .1 - r * .025, r * .24, r * .05);
+    ctx.restore();
+  }
+
+  function drawThornPatch(x, y, r, phase, now) {
+    ctx.save();
+    ctx.translate(x, y);
+    const breathe = 1 + Math.sin(now / 330 + phase) * .035;
+    ctx.scale(breathe, breathe);
+    const spikes = 12;
+    for (let spike = 0; spike < spikes; spike += 1) {
+      const angle = spike / spikes * Math.PI * 2 + phase;
+      ctx.save(); ctx.rotate(angle); ctx.fillStyle = spike % 2 ? '#efc377' : '#ffdba0';
+      ctx.beginPath(); ctx.moveTo(r * .32, -r * .08); ctx.lineTo(r * 1.02, 0); ctx.lineTo(r * .32, r * .08); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+    [[-.34, .05, .5], [.05, -.13, .59], [.36, .09, .46], [-.03, .23, .5]].forEach(([px, py, size], index) => {
+      ctx.fillStyle = index % 2 ? '#315a32' : '#24482b';
+      ctx.beginPath(); ctx.arc(px * r, py * r, size * r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.strokeStyle = '#183920'; ctx.lineWidth = Math.max(2, r * .08); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-r * .5, r * .28); ctx.lineTo(r * .48, -r * .25); ctx.moveTo(-r * .43, -r * .29); ctx.lineTo(r * .46, r * .29); ctx.stroke();
+    ctx.fillStyle = '#ff5f57';
+    [[-.33, -.15], [.13, -.35], [.38, .12]].forEach(([px, py]) => { ctx.beginPath(); ctx.arc(px * r, py * r, r * .09, 0, Math.PI * 2); ctx.fill(); });
+    ctx.restore();
+  }
+
+  function drawOilSpill(x, y, r, phase, now) {
+    drawHazardBlob(x, y, r, phase, now, '#121923', '#05090d', .58);
+    ctx.save();
+    ctx.globalAlpha = .65;
+    ['#cf68ff', '#55dbef', '#ffd447'].forEach((color, band) => {
+      ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.1, r * .034);
+      ctx.beginPath(); ctx.ellipse(x - r * .12, y, r * (.55 - band * .08), r * (.24 - band * .027), -.1, Math.PI * 1.05, Math.PI * 1.78); ctx.stroke();
+    });
+    ctx.translate(x + r * .34, y - r * .22); ctx.rotate(-.62 + Math.sin(now / 500 + phase) * .03);
+    ctx.fillStyle = '#e54f3f'; ctx.strokeStyle = '#5f1f1b'; ctx.lineWidth = Math.max(1.5, r * .055);
+    roundedRect(-r * .22, -r * .24, r * .44, r * .48, r * .08); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffd447'; ctx.fillRect(-r * .17, -r * .04, r * .34, r * .1);
+    ctx.strokeStyle = '#5f1f1b'; ctx.beginPath(); ctx.moveTo(r * .18, -r * .12); ctx.lineTo(r * .4, -r * .24); ctx.lineTo(r * .5, -r * .16); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawRoadwork(x, y, r, phase, now) {
+    drawHazardBlob(x, y + r * .16, r * .92, phase, now, 'rgba(54,50,43,.7)', '#503b28', .45);
+    ctx.save(); ctx.translate(x, y - r * .04);
+    ctx.fillStyle = '#442f27';
+    ctx.fillRect(-r * .58, r * .29, r * .2, r * .31); ctx.fillRect(r * .38, r * .29, r * .2, r * .31);
+    ctx.fillRect(-r * .76, r * .55, r * .5, r * .12); ctx.fillRect(r * .26, r * .55, r * .5, r * .12);
+    ctx.fillStyle = '#f47a31'; ctx.strokeStyle = '#6b2c16'; ctx.lineWidth = Math.max(1.6, r * .055);
+    roundedRect(-r * .78, -r * .33, r * 1.56, r * .65, r * .08); ctx.fill(); ctx.stroke();
+    ctx.save(); roundedRect(-r * .7, -r * .25, r * 1.4, r * .49, r * .04); ctx.clip();
+    ctx.strokeStyle = '#fff4dc'; ctx.lineWidth = r * .22;
+    for (let stripe = -3; stripe <= 3; stripe += 1) { ctx.beginPath(); ctx.moveTo(stripe * r * .45 - r * .2, r * .34); ctx.lineTo(stripe * r * .45 + r * .22, -r * .34); ctx.stroke(); }
+    ctx.restore();
+    const blink = Math.sin(now / 120 + phase) > 0;
+    ctx.fillStyle = blink ? '#ffd447' : '#ff733f'; ctx.shadowColor = '#ffb13b'; ctx.shadowBlur = blink ? r * .3 : 0;
+    [-.55, .55].forEach((side) => { ctx.beginPath(); ctx.arc(side * r, -r * .48, r * .11, 0, Math.PI * 2); ctx.fill(); });
+    ctx.restore();
+  }
+
+  function drawMuddyPaws(x, y, r, phase, now) {
+    drawHazardBlob(x, y, r, phase, now, '#765033', '#452d20');
+    drawHazardPaw(x - r * .28, y + r * .05, r * .7, -.35, '#d8b172');
+    drawHazardPaw(x + r * .31, y - r * .08, r * .62, .25, '#ba8a54');
+    ctx.save(); ctx.strokeStyle = 'rgba(250,218,164,.5)'; ctx.lineWidth = Math.max(1.2, r * .04);
+    ctx.beginPath(); ctx.ellipse(x, y, r * .66, r * .31, .1, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+
+  function drawDogMess(x, y, r, phase, now) {
+    ctx.save(); ctx.translate(x, y + r * .07);
+    ctx.fillStyle = 'rgba(60,39,25,.3)'; ctx.beginPath(); ctx.ellipse(0, r * .4, r * .72, r * .2, 0, 0, Math.PI * 2); ctx.fill();
+    const pile = [['#5b351f', 0, .2, .58, .3], ['#75472a', -.07, -.05, .45, .3], ['#8a5935', .03, -.27, .31, .25]];
+    pile.forEach(([color, px, py, rx, ry]) => { ctx.fillStyle = color; ctx.strokeStyle = '#3a2418'; ctx.lineWidth = Math.max(1.4, r * .045); ctx.beginPath(); ctx.ellipse(px * r, py * r, rx * r, ry * r, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
+    ctx.fillStyle = '#9d7048'; ctx.beginPath(); ctx.moveTo(-r * .2, -r * .42); ctx.quadraticCurveTo(r * .18, -r * .7, r * .14, -r * .27); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(81,48,30,.65)'; ctx.lineWidth = Math.max(1.4, r * .04); ctx.lineCap = 'round';
+    for (let curl = -1; curl <= 1; curl += 2) { const drift = Math.sin(now / 420 + phase + curl) * r * .05; ctx.beginPath(); ctx.moveTo(curl * r * .25, -r * .45); ctx.bezierCurveTo(curl * r * .46 + drift, -r * .72, curl * r * .08, -r * .86, curl * r * .32, -r * 1.02); ctx.stroke(); }
+    ctx.fillStyle = '#171a1d';
+    const flyX = Math.sin(now / 180 + phase) * r * .72, flyY = -r * .62 + Math.cos(now / 150 + phase) * r * .18;
+    ctx.beginPath(); ctx.arc(flyX, flyY, Math.max(1.5, r * .045), 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawToxicSludge(x, y, r, phase, now) {
+    const sludge = ctx.createRadialGradient(x - r * .2, y - r * .18, r * .05, x, y, r);
+    sludge.addColorStop(0, '#e6ff5e'); sludge.addColorStop(.42, '#89d436'); sludge.addColorStop(1, '#4c7224');
+    drawHazardBlob(x, y, r, phase, now, sludge, '#46305e');
+    ctx.save();
+    for (let bubble = 0; bubble < 4; bubble += 1) {
+      const angle = bubble * 1.9 + phase;
+      const bx = x + Math.cos(angle) * r * .48;
+      const by = y + Math.sin(angle * 1.4) * r * .22;
+      const pop = .07 + ((now * .001 + bubble * .22 + phase) % 1) * .08;
+      ctx.fillStyle = bubble % 2 ? '#b8fa4a' : '#8b62a8'; ctx.strokeStyle = '#3d5230'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(bx, by, r * pop, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.48)'; ctx.beginPath(); ctx.arc(bx - r * pop * .25, by - r * pop * .25, Math.max(1, r * pop * .24), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawBarrelLeak(x, y, r, phase, now) {
+    const leak = ctx.createRadialGradient(x - r * .3, y + r * .15, r * .06, x, y + r * .12, r);
+    leak.addColorStop(0, '#d5ff45'); leak.addColorStop(.5, '#68bd32'); leak.addColorStop(1, '#284c29');
+    drawHazardBlob(x, y + r * .2, r, phase, now, leak, '#24422c', .5);
+    ctx.save(); ctx.translate(x + r * .2, y - r * .15); ctx.rotate(-.28);
+    ctx.fillStyle = '#e65f35'; ctx.strokeStyle = '#542820'; ctx.lineWidth = Math.max(1.7, r * .06);
+    roundedRect(-r * .39, -r * .5, r * .78, r, r * .16); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#6c342a'; ctx.fillRect(-r * .39, -r * .31, r * .78, r * .12); ctx.fillRect(-r * .39, r * .2, r * .78, r * .12);
+    ctx.fillStyle = '#ffd447'; ctx.beginPath(); ctx.arc(0, 0, r * .2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4f2922';
+    for (let dot = 0; dot < 3; dot += 1) { const angle = dot / 3 * Math.PI * 2 - Math.PI / 2; ctx.beginPath(); ctx.arc(Math.cos(angle) * r * .105, Math.sin(angle) * r * .105, r * .05, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#9cf24b';
+    const drip = (now * .0018 + phase) % 1;
+    ctx.beginPath(); ctx.ellipse(-r * .36, r * (.35 + drip * .42), r * .07, r * .11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   function drawHazards(now) {
     const w = state.width, h = state.height;
-    state.hazards.forEach((puddle) => {
-      const x = puddle.x * w, y = puddle.y * h, r = puddle.r * Math.min(w, h);
-      ctx.fillStyle = 'rgba(16,27,40,.82)';
-      ctx.beginPath(); ctx.ellipse(x, y, r * (1 + Math.sin(now / 500 + puddle.phase) * .06), r * .55, .2, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#ffd447'; ctx.lineWidth = 3; ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = '#fff'; ctx.font = `1000 ${Math.max(8, r * .25)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`! ${puddle.label}`, x, y);
+    state.hazards.forEach((hazard) => {
+      const x = hazard.x * w, y = hazard.y * h, r = hazard.r * Math.min(w, h);
+      switch (hazard.kind) {
+        case 'mud': drawMudPit(x, y, r, hazard.phase, now); break;
+        case 'thorns': drawThornPatch(x, y, r, hazard.phase, now); break;
+        case 'oil': drawOilSpill(x, y, r, hazard.phase, now); break;
+        case 'roadwork': drawRoadwork(x, y, r, hazard.phase, now); break;
+        case 'mud-paws': drawMuddyPaws(x, y, r, hazard.phase, now); break;
+        case 'dog-mess': drawDogMess(x, y, r, hazard.phase, now); break;
+        case 'barrel-leak': drawBarrelLeak(x, y, r, hazard.phase, now); break;
+        case 'sludge':
+        default: drawToxicSludge(x, y, r, hazard.phase, now); break;
+      }
+      drawDangerRing(x, y, r, hazard.phase, now);
     });
   }
 

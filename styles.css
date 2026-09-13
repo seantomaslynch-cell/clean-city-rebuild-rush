@@ -336,7 +336,19 @@ h2 { font-size: clamp(2.8rem, 10vw, 5.7rem); }
 .tutorial-samples { display: flex; align-items: center; gap: 5px; }
 .sample-object { display: grid; place-items: center; width: 27px; height: 27px; border: 2px solid var(--ink); border-radius: 7px; background: #fff; font-size: 1rem; }
 .depot-sample { padding: 8px 7px; border: 3px solid var(--ink); border-radius: 7px; background: var(--yellow); font-size: .62rem; font-weight: 1000; }
-.oil-sample { display: grid; place-items: center; width: 52px; height: 34px; border: 3px dashed var(--yellow); border-radius: 50%; background: #18222f; color: #fff; font-size: .62rem; font-weight: 1000; transform: rotate(-5deg); }
+.oil-sample {
+  position: relative; display: grid; place-items: center; width: 56px; height: 38px;
+  border: 3px dashed var(--yellow); border-radius: 48% 55% 43% 58%;
+  background: radial-gradient(circle at 32% 28%, #d9ff55 0 9%, #79c837 10% 36%, #453158 68%, #17202b 70%);
+  box-shadow: 0 0 0 4px rgba(255,110,91,.2), 0 0 15px rgba(255,212,71,.7);
+  transform: rotate(-5deg); animation: hazard-pulse .8s ease-in-out infinite alternate;
+}
+.oil-sample::before, .oil-sample::after { content: ''; position: absolute; border-radius: 50%; background: #b7f447; border: 2px solid #453158; }
+.oil-sample::before { width: 9px; height: 9px; left: 8px; top: 6px; }
+.oil-sample::after { width: 6px; height: 6px; right: 8px; bottom: 6px; }
+.oil-sample span { position: relative; z-index: 1; width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 18px solid #ffd447; filter: drop-shadow(0 2px 0 #6a241c); }
+.oil-sample span::before { content: ''; position: absolute; width: 3px; height: 7px; border-radius: 2px; background: #572018; left: -1.5px; top: 7px; box-shadow: 0 9px 0 -0.5px #572018; }
+@keyframes hazard-pulse { from { transform: rotate(-5deg) scale(.96); } to { transform: rotate(-5deg) scale(1.05); } }
 .tutorial-controls { margin: 0 0 14px; color: #49657a; font-size: .86rem; }
 .tutorial-controls strong { color: var(--ink); }
 
