@@ -12,11 +12,14 @@
     start: $('startScreen'), tutorial: $('tutorialScreen'), brief: $('briefScreen'), result: $('resultScreen'), rebuild: $('rebuildScreen'), rewards: $('rewardsScreen'), toast: $('toast'),
     earned: $('earnedSalvage'), sorted: $('itemsSorted'), combo: $('bestCombo'), tier: $('cargoTier'), wallet: $('walletValue'),
     projectList: $('projectList'), homeProgressText: $('homeProgressText'), homeProgressFill: $('homeProgressFill'), bestScore: $('bestScoreValue'), resultHeading: $('resultHeading'),
+    restorationCanvas: $('restorationCanvas'), cityStageLabel: $('cityStageLabel'), cityPercentLabel: $('cityPercentLabel'), cityVisualFill: $('cityVisualFill'),
+    resultProjectText: $('resultProjectText'), resultProjectValue: $('resultProjectValue'), resultProjectFill: $('resultProjectFill'), difficultyBadge: $('difficultyBadge'),
     homeAreaLabel: $('homeAreaLabel'), missionName: $('missionName'), missionSub: $('missionSub'), briefAreaStep: $('briefAreaStep'), briefTitle: $('briefTitle'), briefGoal: $('briefGoal'),
     resultAreaLabel: $('resultAreaLabel'), rebuildAreaLabel: $('rebuildAreaLabel'), briefPaper: $('briefPaper'), briefPlastic: $('briefPlastic'), briefMetal: $('briefMetal'),
     dailyBadge: $('dailyBadge'), dailyStreak: $('dailyStreak'), dailyRewardValue: $('dailyRewardValue'), streakTrack: $('streakTrack'), dailyClaimButton: $('dailyClaimButton'),
     dailyDoubleButton: $('dailyDoubleButton'), dailyChallenges: $('dailyChallenges'), seasonTitle: $('seasonTitle'), seasonXpText: $('seasonXpText'), seasonFill: $('seasonFill'),
-    seasonTrack: $('seasonTrack'), seasonBoostButton: $('seasonBoostButton')
+    seasonTrack: $('seasonTrack'), seasonBoostButton: $('seasonBoostButton'), weeklyProgressText: $('weeklyProgressText'), weeklyProgressFill: $('weeklyProgressFill'),
+    weeklyClaimButton: $('weeklyClaimButton'), weeklyBoostButton: $('weeklyBoostButton'), dailySetBonus: $('dailySetBonus')
   };
 
   const TYPES = {
@@ -63,10 +66,18 @@
     { id: 'park', name: 'Restore Green Park', icon: '🌳', cost: 140, note: 'Unlocks the Main Street cleanup' },
     { id: 'market', name: 'Revive Main Street', icon: '🏙️', cost: 240, note: 'Unlocks the Happy Dog Park' },
     { id: 'fountain', name: 'Build Happy Dog Park', icon: '🐕', cost: 380, note: 'Unlocks the River Habitat' },
-    { id: 'habitat', name: 'Protect River Habitat', icon: '🦆', cost: 520, note: 'Completes the world restoration' }
+    { id: 'habitat', name: 'Protect River Habitat', icon: '🦆', cost: 520, note: 'Opens rotating cleanup assignments' },
+    { id: 'gardens', name: 'Plant Community Gardens', icon: '🌻', cost: 680, note: 'Adds flowers and food gardens to the city' },
+    { id: 'solar', name: 'Install Solar Streetlights', icon: '☀️', cost: 820, note: 'Lights restored paths with clean energy' },
+    { id: 'shops', name: 'Renovate Local Storefronts', icon: '🏪', cost: 980, note: 'Brings color and life back downtown' },
+    { id: 'bikes', name: 'Build the Bike Plaza', icon: '🚲', cost: 1160, note: 'Creates a safe low-emission travel hub' },
+    { id: 'rescue', name: 'Open the Pet Rescue Corner', icon: '🐾', cost: 1380, note: 'Gives the dog park a permanent community home' },
+    { id: 'refill', name: 'Add Water Refill Stations', icon: '💧', cost: 1620, note: 'Reduces single-use bottles across every area' },
+    { id: 'boardwalk', name: 'Restore the Wetland Boardwalk', icon: '🌾', cost: 1880, note: 'Reopens the river habitat to visitors' },
+    { id: 'center', name: 'Open the Eco Learning Center', icon: '🏫', cost: 2200, note: 'Completes the city and unlocks Prestige' }
   ];
   const DAILY_REWARDS = [30, 40, 50, 60, 80, 100, 150];
-  const SEASON_REWARDS = [25, 30, 40, 50, 60, 70, 80, 90, 110, 150];
+  const SEASON_REWARDS = [50, 75, 90, 110, 140, 170, 210, 260, 320, 500];
   const SEASON_TIER_XP = 350;
 
   const state = {
@@ -75,17 +86,18 @@
     wallet: 0, built: [], bestScore: 0, totalRuns: 0, doubled: false, magnetUntil: 0, keys: new Set(), pointerDown: false,
     paused: false, saveLoaded: false, firstFrameSent: false, gameReadySent: false, adBusy: false, lastRewardAt: 0,
     vipContract: false, tutorialSeen: false, guideUntil: 0, deposits: 0, levelIndex: 0, contractType: 'plastic', contractGoal: 8, rewardUsed: { bonus: false, magnet: false, recovery: false, supply: false },
-    daily: { lastClaim: '', streak: 0, lastAmount: 0, doubleDate: '', freezeUsed: false, cycleClaims: 0, progress: { date: '', sorted: 0, runs: 0, contracts: 0, bestCombo: 0, score: 0 }, claimed: [] },
+    daily: { lastClaim: '', streak: 0, lastAmount: 0, doubleDate: '', setBonusDate: '', freezeUsed: false, cycleClaims: 0, progress: { date: '', sorted: 0, runs: 0, contracts: 0, bestCombo: 0, score: 0 }, claimed: [] },
+    weekly: { id: '', runs: 0, sorted: 0, claimed: false, boostUsed: false },
     season: { id: '', xp: 0, claimed: [], boostDate: '' },
     cosmetics: { unlocked: ['antenna-none', 'wheels-blue', 'trail-white'], equipped: { antenna: 'antenna-none', wheels: 'wheels-blue', trail: 'trail-white' } },
     prestige: { unlocked: false, enabled: false, activeRun: false, runs: 0 },
-    lostCargo: [], recoveryUntil: 0, lastHazardHit: 0, shakeUntil: 0, cargoBlockedUntil: 0, lastCargoBlockedAt: 0, audioEnabled: true, audioContext: null, trailTick: 0, frameId: 0,
+    lostCargo: [], recoveryUntil: 0, lastHazardHit: 0, shakeUntil: 0, cargoBlockedUntil: 0, lastCargoBlockedAt: 0, audioEnabled: true, audioContext: null, trailTick: 0, frameId: 0, buildReveal: null,
     player: { x: .5, y: .7, tx: .5, ty: .7, r: 22, tier: 1, cargo: [], speed: .31 },
     trash: [], floaters: [], hazards: [], stations: [], nextSpawn: 0
   };
 
   const PHASE3 = (() => {
-    const SAVE_VERSION = 6;
+    const SAVE_VERSION = 7;
     const SEASON_TOTAL_XP = 3500;
     const DEFAULTS = { antenna: 'antenna-none', wheels: 'wheels-blue', trail: 'trail-white' };
     const COSMETICS = [
@@ -140,7 +152,7 @@
       state.daily.freezeUsed = daily.freezeUsed === true;
       state.daily.cycleClaims = Number.isFinite(Number(daily.cycleClaims)) ? Math.min(6, whole(daily.cycleClaims)) : whole(daily.streak) % 7;
       let xp = whole(state.season.xp);
-      if (whole(source.version) < SAVE_VERSION) xp = Math.round(xp * .7);
+      if (whole(source.version) < 6) xp = Math.round(xp * .7);
       const highestClaimed = state.season.claimed.length ? Math.max(...state.season.claimed) : 0;
       state.season.xp = Math.min(SEASON_TOTAL_XP, Math.max(xp, highestClaimed * SEASON_TIER_XP));
       state.cosmetics = normalizeCosmetics(source.cosmetics);
@@ -193,10 +205,22 @@
     function beginRun() { ensureState(); state.prestige.activeRun = state.prestige.enabled && state.prestige.unlocked; }
     function completeRun() { if (state.prestige.activeRun) state.prestige.runs += 1; state.prestige.activeRun = false; }
     function multiplier() { return state.prestige.activeRun ? 1.5 : 1; }
-    function scoreGain(base) { return Math.round(base * multiplier()); }
-    function salvage(score, extras) { return Math.round(score + extras * multiplier()); }
-    function comboWindow(base) { return state.prestige.activeRun ? Math.max(2300, Math.round(base * .75)) : base; }
-    function hazardSpeed() { return state.prestige.activeRun ? 1.2 : 1; }
+    function cityDifficulty() {
+      const stage = Math.min(projects.length, state.built.length);
+      return {
+        tier: Math.min(3, 1 + Math.floor(stage / 4)),
+        goalBonus: Math.floor(stage / 3),
+        hazardCount: Math.min(6, 3 + Math.floor(stage / 4)),
+        hazardSpeed: 1 + Math.min(.24, stage * .02),
+        comboScale: Math.max(.84, 1 - stage * .013),
+        spawnDelay: Math.max(128, 180 - stage * 4),
+        rewardScale: 1 + Math.min(.3, stage * .025)
+      };
+    }
+    function scoreGain(base) { return Math.round(base * multiplier() * cityDifficulty().rewardScale); }
+    function salvage(score, extras) { return Math.round(score + extras * multiplier() * cityDifficulty().rewardScale); }
+    function comboWindow(base) { return Math.max(2200, Math.round(base * cityDifficulty().comboScale * (state.prestige.activeRun ? .75 : 1))); }
+    function hazardSpeed() { return cityDifficulty().hazardSpeed * (state.prestige.activeRun ? 1.2 : 1); }
     function nextLevel(normal) { return state.prestige.enabled && state.prestige.unlocked ? state.prestige.runs % LEVELS.length : normal; }
     function selected(slot) { ensureState(); return byId[state.cosmetics.equipped[slot]] || byId[DEFAULTS[slot]]; }
     function trailColor() { return selected('trail').color; }
@@ -233,7 +257,7 @@
       section.className = 'bot-workshop';
       section.innerHTML = `<div class="workshop-title"><small>PERMANENT UPGRADES</small><strong>BOT WORKSHOP</strong></div>`;
       if (!restored()) {
-        section.innerHTML += `<article class="workshop-locked"><strong>🔒 RESTORE ALL 4 AREAS</strong><small>Prestige Mode and cosmetic upgrades unlock when the world is clean.</small></article>`;
+        section.innerHTML += `<article class="workshop-locked"><strong>🔒 COMPLETE ALL ${projects.length} CITY PROJECTS</strong><small>Prestige Mode and cosmetic upgrades unlock when the entire city restoration is complete.</small></article>`;
         container.appendChild(section);
         return;
       }
@@ -311,7 +335,7 @@
       context.restore();
     }
 
-    return { SAVE_VERSION, SEASON_TOTAL_XP, importSave, exportSave, previewCheckin, claimCheckin, freezeLabel, challengeXp, addSeasonXp, awardRunXp, beginRun, completeRun, scoreGain, salvage, comboWindow, hazardSpeed, nextLevel, renderProgression, trailColor, drawRobotBack, drawRobotFront };
+    return { SAVE_VERSION, SEASON_TOTAL_XP, importSave, exportSave, previewCheckin, claimCheckin, freezeLabel, challengeXp, addSeasonXp, awardRunXp, beginRun, completeRun, scoreGain, salvage, comboWindow, hazardSpeed, cityDifficulty, nextLevel, renderProgression, trailColor, drawRobotBack, drawRobotFront };
   })();
 
   const PARTICLE_POOL = (() => {
@@ -385,12 +409,17 @@
   function isPlayables() { return window.ytgame?.IN_PLAYABLES_ENV === true; }
 
   function getLevelIndex() {
-    const firstUnrestored = projects.findIndex((project) => !state.built.includes(project.id));
-    const normal = firstUnrestored === -1 ? LEVELS.length - 1 : Math.min(firstUnrestored, LEVELS.length - 1);
+    const coreProjects = projects.slice(0, LEVELS.length);
+    const firstUnrestored = coreProjects.findIndex((project) => !state.built.includes(project.id));
+    const normal = firstUnrestored === -1 ? state.totalRuns % LEVELS.length : firstUnrestored;
     return PHASE3.nextLevel(normal);
   }
 
   function currentLevel() { return LEVELS[state.levelIndex] || LEVELS[0]; }
+
+  function nextProject() { return projects.find((project) => !state.built.includes(project.id)); }
+
+  function goalForLevel(level) { return level.goal + PHASE3.cityDifficulty().goalBonus; }
 
   function updateLevelCopy() {
     state.levelIndex = getLevelIndex();
@@ -398,10 +427,14 @@
     const step = `AREA ${state.levelIndex + 1} OF ${LEVELS.length}`;
     ui.homeAreaLabel.textContent = `${step} · ${level.name.toUpperCase()}`;
     ui.missionName.textContent = level.mission;
-    ui.missionSub.textContent = `60-second ${level.name.toLowerCase()} cleanup`;
+    const difficulty = PHASE3.cityDifficulty();
+    ui.missionSub.textContent = `60-second ${level.name.toLowerCase()} cleanup · city tier ${difficulty.tier}`;
     ui.briefAreaStep.textContent = `${step} · CLEANUP CONTRACT`;
     ui.briefTitle.innerHTML = level.title;
-    ui.briefGoal.innerHTML = `<strong>GOAL:</strong> Sort ${level.goal} ${level.target}. Collect any bright junk, then deliver it to the same-color depot.`;
+    ui.briefGoal.innerHTML = `<strong>GOAL:</strong> Sort ${goalForLevel(level)} ${level.target}. Collect any bright junk, then deliver it to the same-color depot.`;
+    const difficultyNames = ['FRESH START', 'BUSY CITY', 'ECO EXPERT'];
+    ui.difficultyBadge.textContent = `CITY TIER ${difficulty.tier} · ${difficultyNames[difficulty.tier - 1]}`;
+    ui.difficultyBadge.className = `difficulty-badge${difficulty.tier > 1 ? ` tier-${difficulty.tier}` : ''}`;
     ['paper', 'plastic', 'metal'].forEach((type) => ui[`brief${type[0].toUpperCase()}${type.slice(1)}`].classList.toggle('contract-target', type === level.contractType));
     ui.resultAreaLabel.textContent = `${level.name.toUpperCase()} · SHIFT COMPLETE`;
     ui.rebuildAreaLabel.textContent = state.built.length === projects.length ? 'WORLD RESTORED' : 'WORLD RESTORATION';
@@ -642,6 +675,13 @@
 
   function monthKey() { return todayKey().slice(0, 7); }
 
+  function weekKey() {
+    const now = new Date();
+    const day = now.getUTCDay() || 7;
+    const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - day + 1));
+    return monday.toISOString().slice(0, 10);
+  }
+
   function dayNumber(key) {
     const parts = String(key || '').split('-').map(Number);
     return parts.length === 3 && parts.every(Number.isFinite) ? Math.floor(Date.UTC(parts[0], parts[1] - 1, parts[2]) / 86400000) : -1;
@@ -654,6 +694,7 @@
       state.daily.claimed = [];
     }
     if (state.season.id !== monthKey()) state.season = { id: monthKey(), xp: 0, claimed: [], boostDate: '' };
+    if (!state.weekly || state.weekly.id !== weekKey()) state.weekly = { id: weekKey(), runs: 0, sorted: 0, claimed: false, boostUsed: false };
   }
 
   function projectedStreak() {
@@ -666,11 +707,12 @@
 
   function dailyChallenges() {
     const seed = Math.max(0, dayNumber(todayKey()));
-    const sortedTarget = [12, 15, 18][seed % 3];
+    const cityStep = Math.floor(state.built.length / 4);
+    const sortedTarget = [12, 15, 18][seed % 3] + cityStep * 2;
     const rotating = [
       { id: 'contract', icon: '🏆', title: 'Finish a color contract', key: 'contracts', target: 1, reward: 70 },
-      { id: 'combo', icon: '⚡', title: `Reach a ×${3 + (seed % 2)} chain`, key: 'bestCombo', target: 3 + (seed % 2), reward: 70 },
-      { id: 'score', icon: '⭐', title: `Earn ${180 + (seed % 3) * 20} points`, key: 'score', target: 180 + (seed % 3) * 20, reward: 70 }
+      { id: 'combo', icon: '⚡', title: `Reach a ×${3 + (seed % 2) + Math.min(2, cityStep)} chain`, key: 'bestCombo', target: 3 + (seed % 2) + Math.min(2, cityStep), reward: 70 },
+      { id: 'score', icon: '⭐', title: `Earn ${180 + (seed % 3) * 20 + cityStep * 60} points`, key: 'score', target: 180 + (seed % 3) * 20 + cityStep * 60, reward: 70 }
     ][seed % 3];
     return [
       { id: 'sort', icon: '♻', title: `Sort ${sortedTarget} pieces of junk`, key: 'sorted', target: sortedTarget, reward: 50, xp: PHASE3.challengeXp(0), difficulty: 'EASY' },
@@ -692,7 +734,8 @@
     ensureRetentionState();
     const freeClaims = (state.daily.lastClaim === todayKey() ? 0 : 1)
       + dailyChallenges().filter((challenge) => challengeValue(challenge) >= challenge.target && !state.daily.claimed.includes(challenge.id)).length
-      + SEASON_REWARDS.filter((_, index) => state.season.xp >= (index + 1) * SEASON_TIER_XP && !state.season.claimed.includes(index + 1)).length;
+      + SEASON_REWARDS.filter((_, index) => state.season.xp >= (index + 1) * SEASON_TIER_XP && !state.season.claimed.includes(index + 1)).length
+      + (state.weekly.runs >= 10 && !state.weekly.claimed ? 1 : 0);
     ui.dailyBadge.textContent = freeClaims ? String(Math.min(9, freeClaims)) : '✓';
     ui.dailyBadge.classList.toggle('quiet', freeClaims === 0);
   }
@@ -729,6 +772,17 @@
       card.querySelector('button').addEventListener('click', () => claimChallenge(challenge.id));
       ui.dailyChallenges.appendChild(card);
     });
+    const dailySetComplete = dailyChallenges().every((challenge) => state.daily.claimed.includes(challenge.id));
+    ui.dailySetBonus.textContent = state.daily.setBonusDate === today ? 'DAILY SET COMPLETE ✓ · BONUS CLAIMED' : `DAILY SET BONUS · ${state.daily.claimed.length}/3 GOALS · ♻ 120 + 100 XP`;
+    ui.dailySetBonus.classList.toggle('complete', dailySetComplete || state.daily.setBonusDate === today);
+
+    const weeklyRuns = Math.min(10, state.weekly.runs);
+    ui.weeklyProgressText.textContent = `${weeklyRuns} / 10`;
+    ui.weeklyProgressFill.style.width = `${weeklyRuns * 10}%`;
+    ui.weeklyClaimButton.disabled = weeklyRuns < 10 || state.weekly.claimed;
+    ui.weeklyClaimButton.textContent = state.weekly.claimed ? 'WEEKLY GRANT CLAIMED ✓' : 'WEEKLY GRANT · ♻ 350 + 250 XP';
+    ui.weeklyBoostButton.disabled = state.weekly.boostUsed || state.weekly.claimed;
+    ui.weeklyBoostButton.querySelector('strong').textContent = state.weekly.boostUsed ? 'VOLUNTEER CREW USED ✓' : 'VOLUNTEER CREW';
 
     ui.seasonTitle.textContent = seasonName();
     ui.seasonXpText.textContent = `${state.season.xp} / ${SEASON_REWARDS.length * SEASON_TIER_XP} XP`;
@@ -786,8 +840,14 @@
     state.daily.claimed.push(id);
     state.wallet += challenge.reward;
     addSeasonXp(challenge.xp);
+    const allClaimed = dailyChallenges().every((item) => state.daily.claimed.includes(item.id));
+    if (allClaimed && state.daily.setBonusDate !== todayKey()) {
+      state.daily.setBonusDate = todayKey();
+      state.wallet += 120;
+      addSeasonXp(100);
+    }
     sfx('reward');
-    showToast(`Challenge complete: +${challenge.reward} salvage`);
+    showToast(allClaimed ? `Daily set complete! +${challenge.reward + 120} salvage` : `Challenge complete: +${challenge.reward} salvage`);
     saveProgress();
     renderRewards();
   }
@@ -815,6 +875,28 @@
     }, ui.seasonBoostButton);
   }
 
+  function claimWeekly() {
+    ensureRetentionState();
+    if (state.weekly.runs < 10 || state.weekly.claimed) return;
+    state.weekly.claimed = true;
+    state.wallet += 350;
+    addSeasonXp(250);
+    sfx('reward');
+    showToast('Community goal complete! +350 salvage +250 XP');
+    saveProgress();
+    renderRewards();
+  }
+
+  function boostWeekly() {
+    ensureRetentionState();
+    if (state.weekly.boostUsed || state.weekly.claimed) return;
+    requestReward('weekly-volunteer-crew-2-credits', () => {
+      state.weekly.boostUsed = true;
+      state.weekly.runs = Math.min(10, state.weekly.runs + 2);
+      renderRewards();
+    }, ui.weeklyBoostButton);
+  }
+
   function applySave(saved) {
     state.wallet = Math.max(0, Number(saved?.wallet) || 0);
     state.built = Array.isArray(saved?.built) ? saved.built.filter((id) => projects.some((p) => p.id === id)) : [];
@@ -827,6 +909,7 @@
       streak: Math.max(0, Number(daily.streak) || 0),
       lastAmount: Math.max(0, Number(daily.lastAmount) || 0),
       doubleDate: typeof daily.doubleDate === 'string' ? daily.doubleDate : '',
+      setBonusDate: typeof daily.setBonusDate === 'string' ? daily.setBonusDate : '',
       progress: daily.progress && typeof daily.progress === 'object' ? { ...daily.progress } : state.daily.progress,
       claimed: Array.isArray(daily.claimed) ? daily.claimed.filter((id) => typeof id === 'string') : []
     };
@@ -836,6 +919,14 @@
       xp: Math.max(0, Number(season.xp) || 0),
       claimed: Array.isArray(season.claimed) ? season.claimed.map(Number).filter((tier) => tier >= 1 && tier <= SEASON_REWARDS.length) : [],
       boostDate: typeof season.boostDate === 'string' ? season.boostDate : ''
+    };
+    const weekly = saved?.weekly || {};
+    state.weekly = {
+      id: typeof weekly.id === 'string' ? weekly.id : '',
+      runs: Math.max(0, Math.floor(Number(weekly.runs) || 0)),
+      sorted: Math.max(0, Math.floor(Number(weekly.sorted) || 0)),
+      claimed: weekly.claimed === true,
+      boostUsed: weekly.boostUsed === true
     };
     PHASE3.importSave(saved);
     ensureRetentionState();
@@ -850,6 +941,7 @@
       totalRuns: 0,
       tutorialSeen: false,
       daily: {},
+      weekly: {},
       season: {},
       cosmetics: {},
       prestige: {}
@@ -873,6 +965,7 @@
       totalRuns: state.totalRuns,
       tutorialSeen: state.tutorialSeen,
       daily: state.daily,
+      weekly: state.weekly,
       season: state.season,
       ...PHASE3.exportSave()
     };
@@ -1005,7 +1098,7 @@
     updateLevelCopy();
     const level = currentLevel();
     state.contractType = level.contractType;
-    state.contractGoal = level.goal;
+    state.contractGoal = goalForLevel(level);
     state.runLeft = 60;
     state.score = 0;
     state.earned = 0;
@@ -1032,11 +1125,15 @@
     state.trash = [];
     PARTICLE_POOL.reset();
     state.floaters = [];
-    state.hazards = [
+    const hazardTemplates = [
       { x: .27, y: .48, ox: .27, oy: .48, r: .065, phase: 0, label: level.hazard },
       { x: .72, y: .68, ox: .72, oy: .68, r: .07, phase: 2.1, label: level.hazard },
-      { x: .54, y: state.width > state.height ? .34 : .54, ox: .54, oy: state.width > state.height ? .34 : .54, r: .052, phase: 4.4, label: level.hazard }
+      { x: .54, y: state.width > state.height ? .34 : .54, ox: .54, oy: state.width > state.height ? .34 : .54, r: .052, phase: 4.4, label: level.hazard },
+      { x: .38, y: .76, ox: .38, oy: .76, r: .048, phase: 1.4, label: level.hazard },
+      { x: .82, y: .43, ox: .82, oy: .43, r: .046, phase: 3.6, label: level.hazard },
+      { x: .18, y: .67, ox: .18, oy: .67, r: .044, phase: 5.3, label: level.hazard }
     ];
+    state.hazards = hazardTemplates.slice(0, PHASE3.cityDifficulty().hazardCount);
     for (let i = 0; i < 34; i++) spawnTrash();
     updateHud();
   }
@@ -1164,6 +1261,8 @@
     state.daily.progress.score += state.score;
     state.daily.progress.contracts += state.contractAwarded ? 1 : 0;
     state.daily.progress.bestCombo = Math.max(state.daily.progress.bestCombo, state.bestCombo);
+    state.weekly.runs += 1;
+    state.weekly.sorted += state.sorted;
     if (state.score > state.bestScore) state.bestScore = state.score;
     ui.earned.textContent = state.earned;
     ui.sorted.textContent = state.sorted;
@@ -1174,6 +1273,7 @@
     $('doubleButton').classList.toggle('hidden', state.earned <= 0);
     ui.resultHeading.innerHTML = state.sorted > 0 ? `${currentLevel().name.toUpperCase()}<br>IS CLEANER!` : 'NO JUNK<br>SORTED YET';
     ui.resultAreaLabel.textContent = `${prestigeRun ? 'PRESTIGE · ' : ''}${currentLevel().name.toUpperCase()} · +${runXp} SEASON XP`;
+    updateResultProjectProgress();
     ui.bestScore.textContent = state.bestScore.toLocaleString();
     if (isPlayables() && window.ytgame?.engagement?.sendScore) {
       window.ytgame.engagement.sendScore({ value: state.bestScore }).catch(() => {});
@@ -1191,25 +1291,47 @@
       state.doubled = true;
       state.wallet += state.earned;
       ui.earned.textContent = state.earned * 2;
+      updateResultProjectProgress();
       $('doubleButton').disabled = true;
       $('doubleButton').style.opacity = '.55';
     }, $('doubleButton'));
   }
+
+  function updateResultProjectProgress() {
+    const project = nextProject();
+    if (!project) {
+      ui.resultProjectText.textContent = 'CITY RESTORATION COMPLETE';
+      ui.resultProjectValue.textContent = 'PRESTIGE UNLOCKED ✓';
+      ui.resultProjectFill.style.width = '100%';
+      return;
+    }
+    ui.resultProjectText.textContent = `NEXT · ${project.name.toUpperCase()}`;
+    ui.resultProjectValue.textContent = `♻ ${Math.min(project.cost, state.wallet)} / ${project.cost}`;
+    ui.resultProjectFill.style.width = `${Math.min(100, state.wallet / project.cost * 100)}%`;
+  }
+
+  function supplyDropValue() { return 50 + Math.min(150, state.built.length * 15); }
 
   function renderProjects() {
     updateLevelCopy();
     ui.wallet.textContent = state.wallet;
     ui.supplyButton.disabled = state.rewardUsed.supply;
     ui.supplyButton.style.opacity = state.rewardUsed.supply ? '.55' : '1';
+    ui.supplyButton.querySelector('small').textContent = `+${supplyDropValue()} salvage · optional rewarded ad`;
+    const percent = Math.round(state.built.length / projects.length * 100);
+    ui.cityStageLabel.textContent = state.built.length === projects.length ? 'CLEAN CITY COMPLETE · PRESTIGE READY' : `CITY RESTORATION · ${state.built.length} OF ${projects.length} PROJECTS`;
+    ui.cityPercentLabel.textContent = `${percent}% RESTORED`;
+    ui.cityVisualFill.style.width = `${percent}%`;
     ui.projectList.innerHTML = '';
+    const currentProjectIndex = projects.findIndex((project) => !state.built.includes(project.id));
     projects.forEach((project, index) => {
       const complete = state.built.includes(project.id);
       const locked = index > 0 && !state.built.includes(projects[index - 1].id);
-      const current = !complete && !locked && index === getLevelIndex();
+      const current = !complete && !locked && index === currentProjectIndex;
       const card = document.createElement('article');
       card.className = `project-card${complete ? ' complete' : ''}${locked ? ' locked' : ''}${current ? ' current' : ''}`;
       const buttonLabel = complete ? 'RESTORED ✓' : locked ? '🔒 LOCKED' : `♻ ${project.cost}`;
-      card.innerHTML = `<div class="project-visual" aria-hidden="true">${project.icon}</div><div><small>AREA ${index + 1}</small><strong>${project.name}</strong><small>${project.note}</small></div><button class="build-button" type="button" ${(locked || complete || state.wallet < project.cost) ? 'disabled' : ''}>${buttonLabel}</button>`;
+      card.innerHTML = `<div class="project-visual" aria-hidden="true">${project.icon}</div><div><small>CITY PROJECT ${index + 1}</small><strong>${project.name}</strong><small>${project.note}</small></div><button class="build-button" type="button" ${(locked || complete || state.wallet < project.cost) ? 'disabled' : ''}>${buttonLabel}</button>`;
       card.querySelector('button').addEventListener('click', () => buildProject(project));
       ui.projectList.appendChild(card);
     });
@@ -1224,22 +1346,29 @@
     if (state.wallet < project.cost) return;
     state.wallet -= project.cost;
     state.built.push(project.id);
+    state.buildReveal = { index: projectIndex, start: performance.now() };
     const prestigeUnlocked = state.built.length === projects.length;
     state.prestige.unlocked = prestigeUnlocked;
     saveProgress();
     updateHomeProgress();
     renderProjects();
+    ui.rebuild.classList.remove('building');
+    void ui.rebuild.offsetWidth;
+    ui.rebuild.classList.add('building');
+    clearTimeout(buildProject.visualTimer);
+    buildProject.visualTimer = setTimeout(() => ui.rebuild.classList.remove('building'), 700);
     burst(.5, .42, '#39d98a', 28);
     sfx('build');
     const nextLevel = LEVELS[projectIndex + 1];
-    showToast(prestigeUnlocked ? 'World restored! Prestige and the Bot Workshop are unlocked!' : `${nextLevel.name} unlocked!`);
+    const message = prestigeUnlocked ? 'Clean City complete! Prestige and the Bot Workshop are unlocked!' : nextLevel && projectIndex < LEVELS.length ? `${nextLevel.name} unlocked!` : `${project.name} restored — the city looks better!`;
+    showToast(message);
   }
 
   function activateSupplyDrop() {
     if (state.paused || state.rewardUsed.supply) return;
     requestReward('recycled-supply-drop-50-salvage', () => {
       state.rewardUsed.supply = true;
-      state.wallet += 50;
+      state.wallet += supplyDropValue();
       renderProjects();
     }, ui.supplyButton);
   }
@@ -1380,7 +1509,7 @@
     });
     if (state.trash.length < 27 && now > state.nextSpawn) {
       spawnTrash();
-      state.nextSpawn = now + 180;
+      state.nextSpawn = now + PHASE3.cityDifficulty().spawnDelay;
     }
     PARTICLE_POOL.update(dt);
     state.floaters.forEach((f) => { f.y -= dt * .035; f.life -= dt; });
@@ -1483,6 +1612,132 @@
     ctx.closePath();
   }
 
+  const restorationCtx = ui.restorationCanvas?.getContext?.('2d', { alpha: false }) || null;
+
+  function sceneRounded(context, x, y, width, height, radius) {
+    context.beginPath();
+    if (context.roundRect) { context.roundRect(x, y, width, height, radius); return; }
+    const r = Math.min(radius, width / 2, height / 2);
+    context.moveTo(x + r, y); context.arcTo(x + width, y, x + width, y + height, r); context.arcTo(x + width, y + height, x, y + height, r); context.arcTo(x, y + height, x, y, r); context.arcTo(x, y, x + width, y, r); context.closePath();
+  }
+
+  function sceneTree(context, x, y, scale, healthy) {
+    context.fillStyle = 'rgba(16,37,59,.18)'; context.beginPath(); context.ellipse(x + 3 * scale, y + 15 * scale, 13 * scale, 4 * scale, 0, 0, Math.PI * 2); context.fill();
+    context.fillStyle = healthy ? '#7b5334' : '#665b50'; context.fillRect(x - 2 * scale, y, 4 * scale, 17 * scale);
+    if (!healthy) { context.strokeStyle = '#665b50'; context.lineWidth = 2 * scale; context.beginPath(); context.moveTo(x, y + 3 * scale); context.lineTo(x - 7 * scale, y - 5 * scale); context.moveTo(x, y + 5 * scale); context.lineTo(x + 7 * scale, y - 3 * scale); context.stroke(); return; }
+    context.fillStyle = '#257d4d';
+    [[0,-5,10],[-7,0,8],[7,0,8]].forEach(([dx,dy,r]) => { context.beginPath(); context.arc(x + dx * scale, y + dy * scale, r * scale, 0, Math.PI * 2); context.fill(); });
+    context.fillStyle = '#6dcc70'; context.beginPath(); context.arc(x - 4 * scale, y - 9 * scale, 4 * scale, 0, Math.PI * 2); context.fill();
+  }
+
+  function sceneBuilding(context, x, y, width, height, color, lively) {
+    context.fillStyle = 'rgba(16,37,59,.2)'; context.fillRect(x + 5, y + 5, width, height);
+    context.fillStyle = lively ? color : '#8e999b'; context.fillRect(x, y, width, height);
+    context.fillStyle = lively ? '#f6f2df' : '#6d7778'; context.fillRect(x - 2, y, width + 4, 5);
+    const columns = Math.max(2, Math.floor(width / 22));
+    for (let col = 0; col < columns; col++) {
+      context.fillStyle = lively ? (col % 2 ? '#bdebf1' : '#ffe69b') : '#586669';
+      context.fillRect(x + 7 + col * (width - 12) / columns, y + 12, Math.max(7, width / columns - 9), 12);
+      if (!lively) { context.strokeStyle = '#b8a98e'; context.lineWidth = 2; context.beginPath(); context.moveTo(x + 7 + col * (width - 12) / columns, y + 12); context.lineTo(x + 14 + col * (width - 12) / columns, y + 24); context.stroke(); }
+    }
+    if (lively) {
+      context.fillStyle = '#fff4d8'; context.fillRect(x + 3, y + height - 15, width - 6, 11);
+      context.fillStyle = color === '#f47764' ? '#ffd447' : '#f47764';
+      for (let stripe = 0; stripe < 6; stripe++) context.fillRect(x + 4 + stripe * (width - 8) / 6, y + height - 15, (width - 8) / 12, 11);
+    } else {
+      context.fillStyle = '#675b4e'; context.fillRect(x + width * .36, y + height - 18, width * .28, 18);
+    }
+    context.strokeStyle = '#243d4b'; context.lineWidth = 2; context.strokeRect(x, y, width, height);
+  }
+
+  function drawRestorationScene(now) {
+    if (!restorationCtx || state.mode !== 'rebuild') return;
+    const canvas = ui.restorationCanvas, rect = canvas.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), pixelWidth = Math.round(rect.width * dpr), pixelHeight = Math.round(rect.height * dpr);
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) { canvas.width = pixelWidth; canvas.height = pixelHeight; }
+    const context = restorationCtx, sx = rect.width / 720, sy = rect.height / 280;
+    context.setTransform(dpr * sx, 0, 0, dpr * sy, 0, 0);
+    const built = (index) => state.built.includes(projects[index]?.id), count = state.built.length;
+    const sky = context.createLinearGradient(0, 0, 0, 150); sky.addColorStop(0, count ? '#6fd3ea' : '#9baeb2'); sky.addColorStop(1, count ? '#e6faf4' : '#d4d3c9'); context.fillStyle = sky; context.fillRect(0, 0, 720, 280);
+    context.fillStyle = count ? 'rgba(255,235,140,.86)' : 'rgba(226,220,190,.48)'; context.beginPath(); context.arc(645, 42, 22, 0, Math.PI * 2); context.fill();
+    context.fillStyle = count ? 'rgba(255,255,255,.62)' : 'rgba(235,235,228,.4)';
+    for (let i = 0; i < 4; i++) { const x = 80 + i * 185 + Math.sin(now / 4000 + i) * 8; context.beginPath(); context.ellipse(x, 48 + (i % 2) * 22, 34, 9, 0, 0, Math.PI * 2); context.fill(); }
+
+    context.fillStyle = count ? '#9acb70' : '#a89e88'; context.fillRect(0, 88, 720, 192);
+    context.fillStyle = '#314b59'; context.beginPath(); context.moveTo(0, 222); context.lineTo(720, 190); context.lineTo(720, 245); context.lineTo(0, 274); context.closePath(); context.fill();
+    context.strokeStyle = 'rgba(255,240,180,.75)'; context.lineWidth = 3; context.setLineDash([18,16]); context.beginPath(); context.moveTo(0, 247); context.lineTo(720, 217); context.stroke(); context.setLineDash([]);
+    context.strokeStyle = count ? '#e9e6dc' : '#736e65'; context.lineWidth = 2; context.beginPath(); context.moveTo(0, 217); context.lineTo(720, 185); context.stroke();
+
+    const river = context.createLinearGradient(535, 0, 715, 0); river.addColorStop(0, built(3) ? '#4db6d2' : '#677f7e'); river.addColorStop(1, built(3) ? '#268bb7' : '#526967');
+    context.fillStyle = river; context.beginPath(); context.moveTo(540, 88); context.bezierCurveTo(520, 140, 570, 190, 545, 280); context.lineTo(720, 280); context.lineTo(720, 88); context.closePath(); context.fill();
+    context.strokeStyle = built(3) ? 'rgba(230,253,255,.68)' : 'rgba(210,215,205,.24)'; context.lineWidth = 3;
+    for (let i = 0; i < 6; i++) { const y = 112 + i * 29, shift = Math.sin(now / 600 + i) * 8; context.beginPath(); context.moveTo(560, y); context.quadraticCurveTo(610 + shift, y - 7, 690, y); context.stroke(); }
+    if (!built(3)) {
+      ['#c8bb8c','#d6d6cf','#ba765c'].forEach((color, i) => { context.fillStyle = color; context.fillRect(586 + i * 32, 126 + i * 38, 15, 8); });
+    } else {
+      context.strokeStyle = '#2e7949'; context.lineWidth = 4; for (let i = 0; i < 7; i++) { context.beginPath(); context.moveTo(550 + i * 22, 184 + (i % 2) * 48); context.lineTo(545 + i * 23, 166 + (i % 2) * 48); context.stroke(); }
+    }
+
+    const livelyStreet = built(1);
+    sceneBuilding(context, 245, 92, 70, 70, '#f47764', livelyStreet); sceneBuilding(context, 318, 78, 82, 84, '#f4c753', livelyStreet); sceneBuilding(context, 403, 99, 74, 63, '#55c5d6', livelyStreet);
+    if (built(6)) {
+      context.fillStyle = '#eaf6f8'; context.fillRect(252, 105, 54, 17); context.fillRect(326, 94, 65, 18); context.fillRect(410, 111, 58, 16);
+      context.fillStyle = '#ff7966'; for (let i = 0; i < 9; i++) context.fillRect(253 + i * 24, 105 + (i % 3 === 1 ? -11 : 0), 10, 11);
+    }
+
+    context.fillStyle = built(0) ? '#63b95b' : '#a79878'; sceneRounded(context, 22, 105, 194, 111, 24); context.fill(); context.strokeStyle = built(0) ? '#347d45' : '#726955'; context.lineWidth = 3; context.stroke();
+    if (built(0)) {
+      sceneTree(context, 52, 132, 1, true); sceneTree(context, 183, 133, .9, true); sceneTree(context, 72, 190, .78, true);
+      context.strokeStyle = '#e3cb92'; context.lineWidth = 18; context.lineCap = 'round'; context.beginPath(); context.moveTo(25, 195); context.quadraticCurveTo(105, 152, 211, 190); context.stroke();
+    } else {
+      sceneTree(context, 52, 143, 1, false); sceneTree(context, 180, 144, .9, false);
+      context.fillStyle = '#6f6759'; for (let i = 0; i < 11; i++) { context.beginPath(); context.arc(44 + (i * 37) % 148, 122 + (i * 29) % 75, 3 + i % 3, 0, Math.PI * 2); context.fill(); }
+    }
+    if (built(4)) {
+      context.fillStyle = '#785533'; for (let row = 0; row < 2; row++) for (let col = 0; col < 3; col++) { context.fillRect(100 + col * 26, 168 + row * 17, 21, 11); context.fillStyle = ['#ffd447','#ff7a85','#f5f2ff'][(row+col)%3]; context.beginPath(); context.arc(110 + col*26, 172 + row*17, 3, 0, Math.PI*2); context.fill(); context.fillStyle='#785533'; }
+    }
+
+    context.strokeStyle = built(2) ? '#f0e6cb' : '#796f5d'; context.lineWidth = 3; context.setLineDash(built(2) ? [] : [7,5]); sceneRounded(context, 286, 177, 198, 83, 13); context.stroke(); context.setLineDash([]);
+    context.fillStyle = built(2) ? '#7fc55d' : '#9b8e72'; sceneRounded(context, 291, 182, 188, 73, 10); context.fill();
+    if (built(2)) {
+      context.strokeStyle = '#ff7565'; context.lineWidth = 6; context.beginPath(); context.arc(326, 225, 15, Math.PI, 0); context.stroke(); context.strokeStyle = '#2c90e6'; context.beginPath(); context.arc(450, 225, 15, Math.PI, 0); context.stroke();
+    } else { context.fillStyle = '#6c6254'; context.fillRect(330, 227, 58, 5); context.fillRect(356, 213, 5, 24); }
+    if (built(8)) {
+      context.fillStyle = '#e8b454'; context.beginPath(); context.moveTo(376, 235); context.lineTo(402, 213); context.lineTo(428, 235); context.closePath(); context.fill(); context.fillStyle = '#6f4932'; sceneRounded(context, 382, 230, 40, 23, 5); context.fill(); context.fillStyle='#fff'; context.beginPath(); context.arc(412,240,3,0,Math.PI*2); context.fill();
+    }
+
+    if (built(5)) {
+      [[225,194],[495,176],[82,230]].forEach(([x,y]) => { context.strokeStyle='#264654'; context.lineWidth=3; context.beginPath(); context.moveTo(x,y); context.lineTo(x,y-31); context.stroke(); context.fillStyle='#244457'; context.fillRect(x-7,y-36,14,6); context.fillStyle='#ffe577'; context.fillRect(x-5,y-35,10,4); });
+    }
+    if (built(7)) {
+      context.strokeStyle='#d9edf0'; context.lineWidth=3; for(let i=0;i<4;i++){ context.beginPath(); context.arc(242+i*15,213,7,Math.PI,0); context.stroke(); }
+      context.strokeStyle='#183e52'; context.beginPath(); context.arc(258,202,7,0,Math.PI*2); context.arc(277,202,7,0,Math.PI*2); context.moveTo(258,202); context.lineTo(266,190); context.lineTo(277,202); context.lineTo(263,202); context.stroke();
+    }
+    if (built(9)) {
+      context.fillStyle='#2b88be'; sceneRounded(context,492,124,28,43,5); context.fill(); context.fillStyle='#eafcff'; context.fillRect(498,131,16,12); context.beginPath(); context.arc(506,154,4,0,Math.PI*2); context.fill();
+    }
+    if (built(10)) {
+      context.fillStyle='#ad7845'; context.fillRect(520,174,151,21); context.strokeStyle='#6b4a30'; context.lineWidth=2; for(let i=0;i<9;i++){ context.beginPath(); context.moveTo(524+i*18,174); context.lineTo(524+i*18,195); context.stroke(); }
+      context.strokeStyle='#e6d7b8'; context.lineWidth=3; context.beginPath(); context.moveTo(526,169); context.lineTo(665,169); context.stroke();
+    }
+    if (built(11)) {
+      context.fillStyle='#f3f0df'; sceneRounded(context,486,69,69,77,8); context.fill(); context.strokeStyle='#254554'; context.lineWidth=3; context.stroke(); context.fillStyle='#39b983'; context.beginPath(); context.moveTo(480,78); context.lineTo(521,49); context.lineTo(561,78); context.closePath(); context.fill(); context.stroke(); context.fillStyle='#68d5e5'; context.fillRect(496,90,17,18); context.fillRect(528,90,17,18); context.fillStyle='#256d4a'; context.fillRect(514,115,15,31); context.fillStyle='#fff'; context.font='900 8px system-ui'; context.textAlign='center'; context.fillText('ECO',521,84);
+    }
+
+    if (!count) {
+      context.fillStyle='#f4d267'; context.strokeStyle='#263f4d'; context.lineWidth=2; sceneRounded(context,267,188,137,31,5); context.fill(); context.stroke(); context.fillStyle='#263f4d'; context.font='1000 11px system-ui'; context.textAlign='center'; context.textBaseline='middle'; context.fillText('RESTORATION SITE',335,203);
+    }
+
+    if (state.buildReveal && now - state.buildReveal.start < 1500) {
+      const zones = [[20,101,202,120],[232,70,257,102],[282,174,207,91],[530,85,180,190],[82,155,105,61],[200,133,320,108],[235,72,250,104],[225,180,80,55],[365,202,73,54],[482,116,49,58],[512,158,168,47],[475,45,92,111]];
+      const zone = zones[state.buildReveal.index] || zones[0], progress = (now - state.buildReveal.start) / 1500;
+      context.save(); context.globalAlpha = 1 - progress; context.strokeStyle='#fff'; context.lineWidth=5; context.setLineDash([10,7]); sceneRounded(context, zone[0]-5, zone[1]-5, zone[2]+10, zone[3]+10, 16); context.stroke(); context.setLineDash([]);
+      for(let i=0;i<18;i++){ const px=zone[0]+((i*37)%zone[2]), py=zone[1]+zone[3]*.7- progress*85 + ((i*17)%25); context.fillStyle=['#39d98a','#ffd447','#5be7ef','#fff'][i%4]; context.beginPath(); context.arc(px,py,3+i%2,0,Math.PI*2); context.fill(); }
+      context.restore();
+    }
+  }
+
   function draw(now) {
     const w = state.width, h = state.height;
     ctx.clearRect(0, 0, w, h);
@@ -1500,6 +1755,7 @@
       drawCityBackdrop(now);
     }
     ctx.restore();
+    drawRestorationScene(now);
   }
 
   function drawWorld(now) {
@@ -1977,6 +2233,8 @@
   $('rewardsHomeButton').addEventListener('click', closeRewards);
   $('dailyClaimButton').addEventListener('click', claimDaily);
   $('dailyDoubleButton').addEventListener('click', doubleDaily);
+  $('weeklyClaimButton').addEventListener('click', claimWeekly);
+  $('weeklyBoostButton').addEventListener('click', boostWeekly);
   $('seasonBoostButton').addEventListener('click', boostSeason);
   $('helpButton').addEventListener('click', () => { unlockAudio(); openTutorial(); });
   $('tutorialButton').addEventListener('click', () => { unlockAudio(); finishTutorial(); });

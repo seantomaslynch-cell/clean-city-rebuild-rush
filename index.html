@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#10253b">
   <meta name="description" content="Clean, sort, and rebuild a colorful city in fast one-minute runs.">
   <title>Clean City: Rebuild Rush</title>
-  <link rel="stylesheet" href="styles.css?v=7.9">
+  <link rel="stylesheet" href="styles.css?v=8.0">
 </head>
 <body>
   <main id="gameShell" aria-label="Clean City: Rebuild Rush game">
@@ -77,6 +77,18 @@
 
         <div class="section-title"><div><small>REFRESHES DAILY</small><strong>TODAY'S CHALLENGES</strong></div><span>+ season XP</span></div>
         <div id="dailyChallenges" class="challenge-list"></div>
+        <div id="dailySetBonus" class="daily-set-bonus">DAILY SET BONUS · Complete all 3 for ♻ 120 + 100 XP</div>
+
+        <article class="retention-card weekly-card">
+          <div class="retention-heading">
+            <div><small>WEEKLY COMMUNITY GOAL</small><strong>KEEP THE CREW MOVING</strong></div>
+            <div id="weeklyProgressText" class="season-xp">0 / 10</div>
+          </div>
+          <p class="season-copy">Complete 10 cleanup runs this week to fund a major city restoration grant.</p>
+          <div class="season-progress weekly-progress"><i id="weeklyProgressFill"></i></div>
+          <button id="weeklyClaimButton" class="claim-button weekly-claim" type="button">WEEKLY GRANT · ♻ 350 + 250 XP</button>
+          <button id="weeklyBoostButton" class="reward-wide compact-reward weekly-boost" type="button"><span>▶</span><strong>VOLUNTEER CREW</strong><small>+2 weekly cleanup credits · optional rewarded ad</small></button>
+        </article>
 
         <article class="retention-card season-card">
           <div class="retention-heading">
@@ -126,6 +138,7 @@
         <div id="briefMetal"><span class="brief-icon silver">🥫</span><strong>Metal</strong><small>Silver depot</small></div>
       </div>
       <p id="briefGoal"><strong>GOAL:</strong> Sort 8 yellow plastic bottles. Collect any bright junk, then deliver it to the same-color depot.</p>
+      <div id="difficultyBadge" class="difficulty-badge">CITY TIER 1 · FRESH START</div>
       <button id="bonusButton" class="reward-wide brief-reward" type="button"><span>▶</span><strong>VIP CLEANUP CONTRACT</strong><small>+60 salvage if you finish · rewarded ad</small></button>
       <button id="goButton" class="primary-button" type="button">LET'S ROLL <span>→</span></button>
     </section>
@@ -139,6 +152,7 @@
         <div><strong id="bestCombo">0</strong><span>Best chain</span></div>
         <div><strong id="cargoTier">1</strong><span>Bot tier</span></div>
       </div>
+      <div class="result-project-hint"><span id="resultProjectText">NEXT RESTORATION</span><strong id="resultProjectValue">♻ 0 / 140</strong><i><b id="resultProjectFill"></b></i></div>
       <button id="doubleButton" class="reward-wide" type="button"><span>▶</span><strong>DOUBLE SALVAGE</strong><small>Rewarded ad</small></button>
       <button id="rebuildButton" class="primary-button" type="button">REBUILD THE BLOCK <span>→</span></button>
     </section>
@@ -148,6 +162,11 @@
         <div><p id="rebuildAreaLabel" class="eyebrow">WORLD RESTORATION</p><h2>REBUILD</h2></div>
         <div class="wallet">♻ <strong id="walletValue">0</strong></div>
       </div>
+      <article class="restoration-visual-card">
+        <canvas id="restorationCanvas" aria-label="Visual model of the city restoration progress"></canvas>
+        <div class="restoration-visual-status"><span id="cityStageLabel">CITY FOUNDATION · 0 OF 12</span><strong id="cityPercentLabel">0% RESTORED</strong></div>
+        <div class="restoration-visual-progress"><i id="cityVisualFill"></i></div>
+      </article>
       <div id="projectList" class="project-list"></div>
       <button id="supplyButton" class="reward-wide supply-button" type="button"><span>▶</span><strong>RECYCLED SUPPLY DROP</strong><small>+50 salvage · rewarded ad</small></button>
       <button id="nextRunButton" class="primary-button" type="button">NEXT CLEANUP <span>→</span></button>
@@ -156,6 +175,6 @@
     <div id="toast" class="toast hidden" role="status" aria-live="assertive"></div>
   </main>
   <script src="https://www.youtube.com/game_api/v1"></script>
-  <script src="game.js?v=7.9"></script>
+  <script src="game.js?v=8.0"></script>
 </body>
 </html>
